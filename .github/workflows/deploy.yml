@@ -1,0 +1,53 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: []
+    # 仅在 CI 通过后部署（通过 workflow_run 触发或在此引用 ci.yml 的结果）
+    # 这里使用 needs: [] 占位，实际生产可改为 needs: ci-backend-lint-test 等
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Placeholder deploy step
+        run: echo "Deploy to production"
+
+      # ===== 以下为待云账号配置后启用的部署步骤 =====
+      # - name: Configure cloud credentials
+      #   run: |
+      #     echo "Configure AWS/GCP/Alibaba Cloud credentials here"
+      #
+      # - name: Copy compose files to server
+      #   run: |
+      #     scp docker-compose.yml .env user@server:/opt/lv/
+      #
+      # - name: Pull latest images and restart services
+      #   run: |
+      #     ssh user@server "cd /opt/lv && \
+      #       docker-compose pull && \
+      #       docker-compose up -d --remove-orphans && \
+      #       docker image prune -f"
+      #
+      # - name: Run database migrations
+      #   run: |
+      #     ssh user@server "cd /opt/lv && \
+      #       docker-compose exec -T backend alembic upgrade head"
+      #
+      # - name: Verify deployment
+      #   run: |
+      #     ssh user@server "curl -fsS http://localhost:8000/api/v1/health/ready"

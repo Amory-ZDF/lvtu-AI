@@ -1,0 +1,47 @@
+{
+  "app": {
+    "name": "旅图",
+    "tagline": "AI 旅行规划助手"
+  },
+  "nav": {
+    "home": "首页",
+    "community": "社区"
+  },
+  "user": {
+    "guest": "游客",
+    "bioAuthed": "旅行爱好者",
+    "bioGuest": "未登录"
+  },
+  "login": {
+    "subtitle": "AI 旅行规划助手",
+    "loginTab": "登录",
+    "registerTab": "注册",
+    "email": "邮箱",
+    "username": "用户名",
+    "displayName": "昵称",
+    "password": "密码",
+    "emailPlaceholder": "you@example.com",
+    "usernamePlaceholder": "字母/数字组合",
+    "displayNamePlaceholder": "展示给其他用户的名字",
+    "passwordPlaceholderLogin": "请输入密码",
+    "passwordPlaceholderRegister": "至少 8 位",
+    "emailInvalid": "请输入有效的邮箱地址",
+    "passwordTooShort": "密码至少 8 位",
+    "usernameRequired": "请输入用户名",
+    "displayNameRequired": "请输入昵称",
+    "operationFailed": "操作失败，请重试",
+    "processing": "处理中...",
+    "backHome": "← 返回首页"
+  },
+  "error": {
+    "boundaryTitle": "出错了，请刷新页面",
+    "boundaryDesc": "抱歉，应用遇到了一些问题。您可以尝试刷新页面或返回首页继续使用。",
+    "retry": "重试",
+    "backHome": "返回首页"
+  },
+  "common": {
+    "loading": "加载中...",
+    "cancel": "取消",
+    "confirm": "确定"
+  }
+}

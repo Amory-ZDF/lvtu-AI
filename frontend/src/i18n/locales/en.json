@@ -1,0 +1,47 @@
+{
+  "app": {
+    "name": "Lv Tu",
+    "tagline": "AI Travel Planner"
+  },
+  "nav": {
+    "home": "Home",
+    "community": "Community"
+  },
+  "user": {
+    "guest": "Guest",
+    "bioAuthed": "Travel lover",
+    "bioGuest": "Not signed in"
+  },
+  "login": {
+    "subtitle": "AI Travel Planner",
+    "loginTab": "Sign in",
+    "registerTab": "Sign up",
+    "email": "Email",
+    "username": "Username",
+    "displayName": "Display name",
+    "password": "Password",
+    "emailPlaceholder": "you@example.com",
+    "usernamePlaceholder": "letters / digits",
+    "displayNamePlaceholder": "Name shown to others",
+    "passwordPlaceholderLogin": "Enter your password",
+    "passwordPlaceholderRegister": "At least 8 characters",
+    "emailInvalid": "Please enter a valid email address",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "usernameRequired": "Please enter a username",
+    "displayNameRequired": "Please enter a display name",
+    "operationFailed": "Operation failed, please try again",
+    "processing": "Processing...",
+    "backHome": "← Back to home"
+  },
+  "error": {
+    "boundaryTitle": "Something went wrong",
+    "boundaryDesc": "Sorry, the app ran into a problem. Try refreshing the page or go back home.",
+    "retry": "Retry",
+    "backHome": "Back to home"
+  },
+  "common": {
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "confirm": "OK"
+  }
+}

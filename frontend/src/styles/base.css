@@ -1,0 +1,61 @@
+/* ═══════════════ Reset & Base ═══════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  background: var(--surface); color: var(--ink); line-height: 1.6; min-height: 100vh;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 55% 45% at 18% 0%, oklch(0.58 0.18 18 / 0.035), transparent),
+    radial-gradient(ellipse 45% 45% at 85% 100%, oklch(0.50 0.14 255 / 0.025), transparent);
+}
+
+h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.15; }
+h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.025em; }
+h3 { font-size: 1.05rem; font-weight: 650; }
+.hint { color: var(--ink-tertiary); font-size: 0.88rem; }
+
+/* ═══════════════ Buttons ═══════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  font-weight: 650; font-family: inherit; border: none; text-decoration: none;
+  transition: all 0.2s ease; white-space: nowrap;
+}
+.btn-primary {
+  background: var(--brand); color: #fff; padding: 11px 26px;
+  border-radius: var(--radius-full); font-size: 0.92rem;
+  box-shadow: 0 4px 18px oklch(0.58 0.18 18 / 0.28);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px oklch(0.58 0.18 18 / 0.38); }
+.btn-lg { padding: 14px 34px; font-size: 1rem; }
+.btn-secondary {
+  background: var(--surface-elevated); color: var(--ink);
+  padding: 10px 20px; border-radius: var(--radius-full);
+  font-size: 0.88rem; border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--brand); color: var(--brand); }
+.btn-outline {
+  background: transparent; color: var(--brand);
+  padding: 10px 20px; border-radius: var(--radius-full);
+  font-size: 0.88rem; border: 2px solid var(--brand);
+}
+.btn-outline:hover { background: var(--brand); color: #fff; }
+
+/* ═══════════════ Back link ═══════════════ */
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem;
+  color: var(--ink-tertiary); cursor: pointer; margin-bottom: 16px; transition: color 0.15s;
+  border: none; background: none; font-family: inherit;
+}
+.back-link:hover { color: var(--brand); }
+
+/* ═══════════════ Toast ═══════════════ */
+.toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  padding: 10px 22px; border-radius: var(--radius-full);
+  background: var(--ink); color: #fff; font-size: 0.82rem; font-weight: 600;
+  z-index: 1000; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }

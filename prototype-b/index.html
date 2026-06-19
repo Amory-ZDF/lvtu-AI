@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>旅图 · 原型 B — 穿搭 & 机位推荐（桌面端）</title>
+<style>
+/* ── Design Tokens ── */
+:root {
+  --brand: oklch(0.58 0.18 18);
+  --brand-deep: oklch(0.42 0.16 18);
+  --brand-muted: oklch(0.85 0.035 18);
+  --brand-ghost: oklch(0.95 0.008 18);
+  --sky: oklch(0.50 0.14 255);
+  --sky-muted: oklch(0.90 0.025 255);
+  --teal: oklch(0.55 0.15 175);
+  --teal-muted: oklch(0.90 0.03 175);
+  --amber: oklch(0.72 0.16 80);
+  --amber-muted: oklch(0.92 0.06 85);
+  --surface: oklch(0.985 0 0);
+  --surface-elevated: oklch(1 0 0);
+  --surface-subtle: oklch(0.972 0.002 18);
+  --ink: oklch(0.14 0.005 260);
+  --ink-secondary: oklch(0.42 0.01 260);
+  --ink-tertiary: oklch(0.60 0.01 260);
+  --border: oklch(0.90 0.005 260);
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.05);
+  --shadow-md: 0 4px 20px oklch(0 0 0 / 0.07);
+  --shadow-lg: 0 16px 48px oklch(0 0 0 / 0.09);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+  --max-content: 1120px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  background: var(--surface); color: var(--ink); line-height: 1.6;
+  min-height: 100vh;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 50% 40% at 15% 0%, oklch(0.55 0.15 175 / 0.04), transparent),
+    radial-gradient(ellipse 50% 40% at 85% 100%, oklch(0.58 0.18 18 / 0.035), transparent);
+}
+
+/* ── Layout ── */
+.app {
+  max-width: var(--max-content); margin: 0 auto; padding: 0 36px 60px;
+  position: relative; z-index: 1;
+}
+
+/* ── Header ── */
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 0; border-bottom: 1px solid var(--border); margin-bottom: 0;
+}
+.header-left { display: flex; align-items: center; gap: 40px; }
+.logo { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.03em; color: var(--brand); }
+.logo span { color: var(--ink); }
+
+/* ── Nav tabs ── */
+.nav-tabs { display: flex; gap: 0; }
+.nav-tab {
+  padding: 8px 18px; font-size: 0.88rem; font-weight: 600; color: var(--ink-tertiary);
+  cursor: pointer; border-radius: var(--radius-full); transition: all 0.15s ease;
+  border: none; background: none; font-family: inherit;
+}
+.nav-tab:hover { color: var(--ink-secondary); background: var(--surface-subtle); }
+.nav-tab.active { color: var(--brand); background: var(--brand-ghost); }
+
+.header-actions { display: flex; gap: 10px; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font-weight: 650; font-family: inherit; border: none; text-decoration: none;
+  transition: all 0.2s ease; white-space: nowrap;
+}
+.btn-primary {
+  background: var(--brand); color: #fff; padding: 10px 22px;
+  border-radius: var(--radius-full); font-size: 0.88rem;
+  box-shadow: 0 4px 16px oklch(0.58 0.18 18 / 0.28);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px oklch(0.58 0.18 18 / 0.38); }
+.btn-outline {
+  background: var(--surface-elevated); color: var(--ink);
+  padding: 10px 22px; border-radius: var(--radius-full);
+  font-size: 0.88rem; border: 1px solid var(--border);
+}
+.btn-outline:hover { border-color: var(--brand); color: var(--brand); }
+
+/* ── Page ── */
+.page { display: none; animation: fadeIn 0.35s ease; padding-top: 28px; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+h1 { font-size: 1.85rem; font-weight: 800; letter-spacing: -0.035em; }
+h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.025em; }
+h3 { font-size: 1.05rem; font-weight: 650; }
+.hint { color: var(--ink-tertiary); font-size: 0.88rem; }
+
+/* ═══════════════ TRIP DETAIL ═══════════════ */
+.trip-banner {
+  display: flex; align-items: flex-start; gap: 32px;
+  padding: 28px 32px; border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--brand-ghost) 0%, oklch(0.97 0.005 255) 100%);
+  border: 1px solid var(--border); margin-bottom: 32px;
+}
+.trip-banner h1 { margin-bottom: 4px; }
+.trip-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.meta-badge {
+  padding: 5px 14px; border-radius: var(--radius-full);
+  border: 1px solid var(--border); background: var(--surface-elevated);
+  font-size: 0.82rem; color: var(--ink-secondary);
+}
+
+.day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+.day-panel {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.day-panel-header {
+  padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.day-num-badge {
+  width: 42px; height: 42px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; color: #fff; flex-shrink: 0;
+}
+.day-num-badge.d1 { background: var(--brand); }
+.day-num-badge.d2 { background: var(--sky); }
+.day-panel-header h4 { font-size: 0.92rem; }
+.day-panel-header p { font-size: 0.76rem; color: var(--ink-tertiary); }
+
+.timeline { padding: 8px 0; }
+.tl-item {
+  display: flex; gap: 12px; padding: 12px 20px; cursor: pointer;
+  transition: all 0.15s ease; align-items: flex-start;
+  border-left: 2px solid transparent; margin-left: 20px;
+}
+.tl-item:hover { background: var(--surface-subtle); border-left-color: var(--brand); }
+.tl-time { font-size: 0.78rem; color: var(--ink-tertiary); width: 42px; flex-shrink: 0; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.tl-desc { flex: 1; }
+.tl-desc strong { display: block; font-size: 0.87rem; }
+.tl-desc span { font-size: 0.76rem; color: var(--ink-tertiary); }
+.tl-icons { display: flex; gap: 4px; }
+.tl-icon {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem; cursor: pointer; transition: all 0.15s ease; background: var(--surface-elevated);
+}
+.tl-icon:hover { border-color: var(--brand); background: var(--brand-ghost); }
+
+.budget-panel {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
+  padding: 20px 24px; border-radius: var(--radius-md);
+  background: var(--surface-subtle); border: 1px solid var(--border);
+  text-align: center; margin-bottom: 20px;
+}
+.budget-item { font-size: 0.82rem; color: var(--ink-secondary); }
+.budget-item strong { display: block; font-size: 1.15rem; color: var(--brand); margin-top: 2px; }
+
+.notes-strip {
+  padding: 16px 20px; border-radius: var(--radius-md);
+  background: var(--sky-muted); font-size: 0.85rem; color: var(--ink-secondary);
+  line-height: 1.7;
+}
+
+/* ═══════════════ OUTFIT ═══════════════ */
+.outfit-top { display: flex; gap: 40px; margin-bottom: 28px; align-items: flex-start; }
+.outfit-intro { flex: 1; }
+.outfit-intro h2 { margin-bottom: 4px; }
+
+.weather-widget {
+  flex: 0 0 280px; padding: 20px 24px; border-radius: var(--radius-lg);
+  background: var(--sky-muted); display: flex; gap: 14px; align-items: center;
+}
+.weather-widget .icon { font-size: 2.5rem; }
+.weather-widget strong { display: block; font-size: 0.9rem; }
+.weather-widget p { font-size: 0.8rem; color: var(--ink-secondary); }
+
+.style-bar { display: flex; gap: 8px; margin-bottom: 28px; }
+.style-chip {
+  padding: 9px 20px; border-radius: var(--radius-full);
+  border: 1.5px solid var(--border); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s ease; background: var(--surface-elevated);
+  font-family: inherit;
+}
+.style-chip:hover { border-color: var(--brand); color: var(--brand); }
+.style-chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+.outfit-section { margin-bottom: 36px; }
+.outfit-section h3 { margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+.day-tag {
+  padding: 5px 14px; border-radius: var(--radius-full);
+  font-size: 0.75rem; font-weight: 700; color: #fff;
+}
+.day-tag.d1 { background: var(--brand); }
+.day-tag.d2 { background: var(--sky); }
+
+.outfit-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.outfit-card {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  transition: all 0.2s ease; cursor: pointer;
+}
+.outfit-card:hover { border-color: var(--brand); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.outfit-visual {
+  height: 160px; display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px; position: relative;
+}
+.outfit-visual .scene-badge {
+  position: absolute; top: 10px; left: 10px;
+  padding: 3px 10px; border-radius: var(--radius-full);
+  background: oklch(0 0 0 / 0.45); backdrop-filter: blur(6px);
+  color: #fff; font-size: 0.7rem; font-weight: 600;
+}
+.outfit-visual .big-emoji { font-size: 3.5rem; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1)); }
+.outfit-body { padding: 14px 16px; }
+.outfit-body h4 { font-size: 0.88rem; margin-bottom: 3px; }
+.outfit-body p { font-size: 0.78rem; color: var(--ink-tertiary); line-height: 1.5; }
+
+.essentials { margin-top: 40px; }
+.essentials h3 { margin-bottom: 14px; }
+.essentials-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.essential-item {
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  font-size: 0.84rem; display: flex; align-items: center; gap: 8px;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.essential-item:hover { border-color: var(--brand); }
+.essential-item.checked { background: var(--brand-ghost); border-color: var(--brand-muted); text-decoration: line-through; text-decoration-color: var(--brand); }
+.essential-item .emoji { font-size: 1.15rem; }
+
+/* ═══════════════ PHOTO SPOTS ═══════════════ */
+.spots-top { display: flex; gap: 40px; margin-bottom: 28px; align-items: flex-start; }
+.spots-intro { flex: 1; }
+.spots-intro h2 { margin-bottom: 4px; }
+
+.mode-bar { display: flex; gap: 6px; margin-bottom: 28px; }
+.mode-btn {
+  padding: 9px 20px; border-radius: var(--radius-full);
+  border: 1.5px solid var(--border); font-size: 0.85rem;
+  font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+  background: var(--surface-elevated); font-family: inherit;
+}
+.mode-btn:hover { border-color: var(--brand); color: var(--brand); }
+.mode-btn.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+.spots-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.spot-card {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  transition: all 0.2s ease; cursor: pointer;
+}
+.spot-card:hover { border-color: var(--brand); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.spot-hero {
+  height: 200px; background-size: cover; background-position: center;
+  position: relative; display: flex; align-items: flex-end; padding: 18px;
+}
+.spot-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(transparent 40%, oklch(0 0 0 / 0.5));
+}
+.spot-hero-text { position: relative; z-index: 1; color: #fff; }
+.spot-hero-text h3 { font-size: 1.15rem; margin-bottom: 2px; }
+.spot-hero-text p { font-size: 0.8rem; opacity: 0.92; }
+.spot-time-pill {
+  position: absolute; top: 14px; right: 14px; z-index: 1;
+  padding: 5px 14px; border-radius: var(--radius-full);
+  background: oklch(1 0 0 / 0.88); backdrop-filter: blur(8px);
+  font-size: 0.74rem; font-weight: 700; color: var(--brand);
+}
+
+.spot-body { padding: 18px 20px; }
+.spot-tip { margin-bottom: 12px; }
+.spot-tip h5 { font-size: 0.82rem; margin-bottom: 3px; display: flex; align-items: center; gap: 5px; color: var(--ink-secondary); }
+.spot-tip p { font-size: 0.8rem; color: var(--ink-secondary); line-height: 1.6; }
+.spot-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.spot-tag {
+  padding: 4px 10px; border-radius: var(--radius-full);
+  font-size: 0.72rem; font-weight: 650;
+}
+.spot-tag.best { background: var(--amber-muted); color: oklch(0.55 0.14 80); }
+.spot-tag.angle { background: var(--sky-muted); color: oklch(0.45 0.12 255); }
+.spot-tag.gear { background: var(--teal-muted); color: oklch(0.48 0.12 175); }
+.spot-tag.style { background: var(--brand-ghost); color: var(--brand); }
+.spot-ftr { display: flex; gap: 8px; }
+.spot-ftr .btn { flex: 1; justify-content: center; }
+
+/* ═══════════════ PACKING LIST ═══════════════ */
+.pack-layout { display: grid; grid-template-columns: 1fr 300px; gap: 32px; align-items: start; }
+.pack-main h2 { margin-bottom: 6px; }
+
+.pack-category { margin-bottom: 24px; }
+.pack-category h4 {
+  font-size: 0.78rem; color: var(--ink-tertiary); text-transform: uppercase;
+  letter-spacing: 0.05em; margin-bottom: 10px;
+}
+.pack-items { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pack-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface-elevated);
+  cursor: pointer; transition: all 0.15s ease; font-size: 0.85rem;
+}
+.pack-item:hover { border-color: var(--brand); }
+.pack-item.packed { background: var(--brand-ghost); border-color: var(--brand-muted); }
+.pack-item.packed .item-name { text-decoration: line-through; text-decoration-color: var(--brand); }
+.pack-check {
+  width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border);
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem; transition: all 0.15s ease;
+}
+.pack-item.packed .pack-check { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+.pack-sidebar {
+  position: sticky; top: 24px;
+}
+.pack-progress-card {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px;
+}
+.pack-progress-card h4 { font-size: 0.82rem; color: var(--ink-secondary); margin-bottom: 12px; }
+.pack-progress-card .bar {
+  height: 8px; background: var(--border); border-radius: 4px;
+  overflow: hidden; margin-bottom: 8px;
+}
+.pack-progress-card .bar-fill {
+  height: 100%; border-radius: 4px; background: var(--brand);
+  transition: width 0.3s ease;
+}
+.pack-count { font-size: 1.5rem; font-weight: 800; color: var(--brand); }
+.pack-count small { font-size: 0.8rem; color: var(--ink-tertiary); font-weight: 400; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  padding: 12px 24px; border-radius: var(--radius-full);
+  background: var(--ink); color: #fff; font-size: 0.85rem; font-weight: 600;
+  z-index: 1000; opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .app { padding: 0 20px 40px; }
+  .app-header { flex-wrap: wrap; gap: 12px; }
+  .header-left { gap: 16px; }
+  .trip-banner { flex-direction: column; }
+  .day-grid { grid-template-columns: 1fr; }
+  .outfit-cards { grid-template-columns: 1fr 1fr; }
+  .spots-grid { grid-template-columns: 1fr; }
+  .pack-layout { grid-template-columns: 1fr; }
+  .budget-panel { grid-template-columns: repeat(3, 1fr); }
+  .essentials-grid { grid-template-columns: repeat(2, 1fr); }
+  .outfit-top, .spots-top { flex-direction: column; }
+  .weather-widget { flex: 0 0 auto; width: 100%; }
+}
+@media (max-width: 768px) {
+  .outfit-cards { grid-template-columns: 1fr; }
+  .budget-panel { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- ════════════ Header + Nav ════════════ -->
+<header class="app-header">
+  <div class="header-left">
+    <div class="logo">旅<span>图</span></div>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="detail" onclick="switchTab('detail')">📋 行程详情</button>
+      <button class="nav-tab" data-tab="outfit" onclick="switchTab('outfit')">👗 穿搭推荐</button>
+      <button class="nav-tab" data-tab="spots" onclick="switchTab('spots')">📸 机位推荐</button>
+      <button class="nav-tab" data-tab="pack" onclick="switchTab('pack')">🎒 打包清单</button>
+    </nav>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-outline" onclick="showToast('已保存草稿')">💾 保存</button>
+    <button class="btn btn-outline" onclick="showToast('链接已复制')">🔗 分享</button>
+    <button class="btn btn-primary" onclick="showToast('行程已确认！')">✨ 确认行程</button>
+  </div>
+</header>
+
+<!-- ════════════ TAB 1: TRIP DETAIL ════════════ -->
+<div class="page active" id="page-detail">
+  <div class="trip-banner">
+    <div>
+      <h1>🌊 大理 · 洱海环线</h1>
+      <p class="hint">方案 A · 轻松出片线 · 2天1夜</p>
+      <div class="trip-meta">
+        <span class="meta-badge">💰 ¥3,200 / 人</span>
+        <span class="meta-badge">📅 3月15日—16日</span>
+        <span class="meta-badge">🌤️ 15°—22°C</span>
+        <span class="meta-badge">👥 2人出行</span>
+        <span class="meta-badge">🚗 电动车 + 步行</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="day-grid">
+    <div class="day-panel">
+      <div class="day-panel-header">
+        <div class="day-num-badge d1">D1</div>
+        <div><h4>洱海西线 · 慢慢骑</h4><p>3月15日 周六 · ☀️ 晴朗 22°C</p></div>
+      </div>
+      <div class="timeline">
+        <div class="tl-item" onclick="switchTab('spots')">
+          <span class="tl-time">09:00</span>
+          <div class="tl-desc"><strong>古城出发 · 租电动车</strong><span>古城南门 · 全天约 ¥80</span></div>
+          <div class="tl-icons"><span class="tl-icon">🗺️</span></div>
+        </div>
+        <div class="tl-item" onclick="switchTab('spots')">
+          <span class="tl-time">10:00</span>
+          <div class="tl-desc"><strong>喜洲古镇</strong><span>白族民居 · 转角楼 · 喜洲粑粑</span></div>
+          <div class="tl-icons"><span class="tl-icon">📸</span><span class="tl-icon">👗</span></div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">12:30</span>
+          <div class="tl-desc"><strong>翰林餐厅 · 午餐</strong><span>地道白族菜 · 酸辣鱼 · 人均 ¥60</span></div>
+        </div>
+        <div class="tl-item" onclick="switchTab('spots')">
+          <span class="tl-time">14:00</span>
+          <div class="tl-desc"><strong>双廊古镇 · 玉几岛</strong><span>洱海最美观景段 · 下午顺光</span></div>
+          <div class="tl-icons"><span class="tl-icon">📸</span><span class="tl-icon">👗</span></div>
+        </div>
+        <div class="tl-item" onclick="switchTab('spots')">
+          <span class="tl-time">18:00</span>
+          <div class="tl-desc"><strong>鹿卧山 · 日落</strong><span>洱海日落最佳观赏点 · 日落 18:45</span></div>
+          <div class="tl-icons"><span class="tl-icon">📸</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="day-panel">
+      <div class="day-panel-header">
+        <div class="day-num-badge d2">D2</div>
+        <div><h4>日出 · 网红弯 · 山寺慢行</h4><p>3月16日 周日 · ⛅ 多云 20°C</p></div>
+      </div>
+      <div class="timeline">
+        <div class="tl-item" onclick="switchTab('spots')">
+          <span class="tl-time">07:20</span>
+          <div class="tl-desc"><strong>龙龛码头 · 日出</strong><span>距离古城最近 · 日出约 7:20</span></div>
+          <div class="tl-icons"><span class="tl-icon">📸</span></div>
+        </div>
+        <div class="tl-item" onclick="switchTab('spots')">
+          <span class="tl-time">10:00</span>
+          <div class="tl-desc"><strong>潘溪村 S 弯</strong><span>网红打卡点 · 上午人少光线好</span></div>
+          <div class="tl-icons"><span class="tl-icon">📸</span><span class="tl-icon">👗</span></div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">13:00</span>
+          <div class="tl-desc"><strong>寂照庵 · 素斋</strong><span>最美尼姑庵 · 多肉花园 · 山林漫步</span></div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">16:00</span>
+          <div class="tl-desc"><strong>返程 · 大理站</strong><span>预留 1 小时前往车站</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="budget-panel">
+    <div class="budget-item">🏨 住宿<strong>¥400</strong></div>
+    <div class="budget-item">🚗 交通<strong>¥300</strong></div>
+    <div class="budget-item">🍜 餐饮<strong>¥400</strong></div>
+    <div class="budget-item">🎫 门票<strong>¥200</strong></div>
+    <div class="budget-item">🎒 其他<strong>¥200</strong></div>
+  </div>
+
+  <div class="notes-strip">
+    <strong>⚠️ 注意事项</strong>&nbsp;&nbsp;
+    早晚温差大，建议带薄外套 &nbsp;|&nbsp;
+    洱海骑行注意防晒 &nbsp;|&nbsp;
+    周末双廊人流较多，建议早出发 &nbsp;|&nbsp;
+    日出拍摄需 6:30 前起床
+  </div>
+</div>
+
+<!-- ════════════ TAB 2: OUTFIT RECOMMENDATION ════════════ -->
+<div class="page" id="page-outfit">
+  <div class="outfit-top">
+    <div class="outfit-intro">
+      <h2>👗 穿搭推荐</h2>
+      <p class="hint">基于大理 3月15-16日天气、行程场景和你的风格偏好智能生成</p>
+    </div>
+    <div class="weather-widget">
+      <div class="icon">🌤️</div>
+      <div>
+        <strong>大理 · 3月15-16日</strong>
+        <p>白天 20-22°C 晴朗 · 夜间 8-10°C · 紫外线强 · 昼夜温差约 12°C</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="style-bar" id="style-bar">
+    <button class="style-chip active" data-style="photo">📸 出片优先</button>
+    <button class="style-chip" data-style="casual">👟 舒适轻便</button>
+    <button class="style-chip" data-style="chic">✨ 法式简约</button>
+    <button class="style-chip" data-style="warm">🧥 保暖实用</button>
+    <button class="style-chip" data-style="local">🌿 民族风混搭</button>
+  </div>
+
+  <div class="outfit-section">
+    <h3><span class="day-tag d1">Day 1</span> 洱海骑行 + 双廊下午茶</h3>
+    <div class="outfit-cards">
+      <div class="outfit-card">
+        <div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.88 0.06 180),oklch(0.82 0.05 215))">
+          <span class="scene-badge">上午 · 喜洲</span>
+          <div class="big-emoji">🧥👗</div>
+        </div>
+        <div class="outfit-body">
+          <h4>法式碎花裙 + 针织开衫</h4>
+          <p>米白开衫搭配碎花长裙，喜洲白族民居前营造法式田园氛围。骑行时扎起裙摆即可。</p>
+        </div>
+      </div>
+      <div class="outfit-card">
+        <div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.85 0.05 45),oklch(0.78 0.06 70))">
+          <span class="scene-badge">下午 · 双廊</span>
+          <div class="big-emoji">👒🕶️</div>
+        </div>
+        <div class="outfit-body">
+          <h4>白色亚麻套装 + 草帽</h4>
+          <p>洱海边白色系最上镜。亚麻材质透气，草帽防晒同时增加度假感。下午阳光充足时是最佳拍摄时间。</p>
+        </div>
+      </div>
+      <div class="outfit-card">
+        <div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.78 0.06 30),oklch(0.70 0.08 55))">
+          <span class="scene-badge">傍晚 · 日落</span>
+          <div class="big-emoji">🧥🧣</div>
+        </div>
+        <div class="outfit-body">
+          <h4>加一件轻薄风衣</h4>
+          <p>日落时分温度开始下降，在亚麻套装外加一件卡其色风衣，保暖同时适合剪影拍摄。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="outfit-section">
+    <h3><span class="day-tag d2">Day 2</span> 日出拍摄 + S弯街拍 + 山寺漫步</h3>
+    <div class="outfit-cards">
+      <div class="outfit-card">
+        <div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.72 0.06 25),oklch(0.64 0.08 50))">
+          <span class="scene-badge">清晨 · 日出</span>
+          <div class="big-emoji">🧥🧣</div>
+        </div>
+        <div class="outfit-body">
+          <h4>薄羽绒 + 围巾 + 长裤</h4>
+          <p>码头清晨约 8-10°C，注意保暖。深色系在金色晨光中形成高级对比。围巾也是拍摄道具。</p>
+        </div>
+      </div>
+      <div class="outfit-card">
+        <div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.80 0.07 260),oklch(0.74 0.06 290))">
+          <span class="scene-badge">上午 · S弯</span>
+          <div class="big-emoji">🧶👖</div>
+        </div>
+        <div class="outfit-body">
+          <h4>条纹针织衫 + 宽松牛仔裤</h4>
+          <p>潘溪村 S 弯偏向日系街拍风格，细条纹针织搭配浅色牛仔裤，清新自然。上午 10 点人少光线好。</p>
+        </div>
+      </div>
+      <div class="outfit-card">
+        <div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.84 0.05 150),oklch(0.78 0.06 175))">
+          <span class="scene-badge">下午 · 寂照庵</span>
+          <div class="big-emoji">🧥👟</div>
+        </div>
+        <div class="outfit-body">
+          <h4>宽松衬衫 + 阔腿裤</h4>
+          <p>山寺环境清幽，选择棉麻材质更贴合氛围。平底鞋方便爬坡，浅色系在多肉花园里很出片。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="essentials">
+    <h3>🎯 必带单品</h3>
+    <div class="essentials-grid" id="essentials-grid">
+      <div class="essential-item"><span class="emoji">🧴</span> 防晒霜 SPF50+</div>
+      <div class="essential-item"><span class="emoji">🕶️</span> 墨镜</div>
+      <div class="essential-item"><span class="emoji">👒</span> 宽檐草帽</div>
+      <div class="essential-item"><span class="emoji">🧥</span> 薄外套 / 开衫</div>
+      <div class="essential-item"><span class="emoji">👟</span> 舒适小白鞋</div>
+      <div class="essential-item"><span class="emoji">📷</span> 相机 / 手机支架</div>
+      <div class="essential-item"><span class="emoji">👜</span> 帆布包</div>
+      <div class="essential-item"><span class="emoji">💧</span> 便携水杯</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ TAB 3: PHOTO SPOTS ════════════ -->
+<div class="page" id="page-spots">
+  <div class="spots-top">
+    <div class="spots-intro">
+      <h2>📸 机位推荐</h2>
+      <p class="hint">大理洱海线 · 8个精选机位 · 包含拍摄时间、构图建议和穿搭匹配</p>
+    </div>
+  </div>
+
+  <div class="mode-bar" id="mode-bar">
+    <button class="mode-btn active" data-mode="all">📷 全部机位</button>
+    <button class="mode-btn" data-mode="easy">✅ 轻松打卡</button>
+    <button class="mode-btn" data-mode="photo">⭐ 高出片率</button>
+    <button class="mode-btn" data-mode="quiet">🍃 少排队</button>
+  </div>
+
+  <div class="spots-grid">
+    <!-- Spot 1: 喜洲转角楼 -->
+    <div class="spot-card">
+      <div class="spot-hero" style="background-image:linear-gradient(135deg,oklch(0.56 0.18 28),oklch(0.48 0.16 48))">
+        <span class="spot-time-pill">🌅 最佳 17:00—18:30</span>
+        <div class="spot-hero-text">
+          <h3>喜洲 · 转角楼</h3>
+          <p>白族建筑美学 · 下午顺光 · 人文感</p>
+        </div>
+      </div>
+      <div class="spot-body">
+        <div class="spot-tip">
+          <h5>📐 构图建议</h5>
+          <p>站在转角楼对面马路边，低角度仰拍，将蓝天和飞檐一起收入画面。人物在转角处自然走动，抓拍效果最佳。</p>
+        </div>
+        <div class="spot-tip">
+          <h5>👗 穿搭匹配</h5>
+          <p>法式碎花裙 + 米白开衫，与青瓦白墙形成冷暖对比。避免穿全白（与白墙融为一体）。</p>
+        </div>
+        <div class="spot-tags">
+          <span class="spot-tag best">⭐ 高出片</span>
+          <span class="spot-tag angle">建筑 · 仰拍</span>
+          <span class="spot-tag gear">手机即可</span>
+          <span class="spot-tag style">法式田园风</span>
+        </div>
+        <div class="spot-ftr">
+          <button class="btn btn-primary" onclick="showToast('已加入日程提醒')">📍 加入日程</button>
+          <button class="btn btn-outline" onclick="showToast('跳转地图')">🗺️ 导航</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spot 2: 鹿卧山 -->
+    <div class="spot-card">
+      <div class="spot-hero" style="background-image:linear-gradient(135deg,oklch(0.58 0.17 205),oklch(0.48 0.16 225))">
+        <span class="spot-time-pill">🌇 最佳 18:00—19:00</span>
+        <div class="spot-hero-text">
+          <h3>鹿卧山 · 日落点</h3>
+          <p>洱海最美日落 · 剪影大片 · 枯树前景</p>
+        </div>
+      </div>
+      <div class="spot-body">
+        <div class="spot-tip">
+          <h5>📐 构图建议</h5>
+          <p>日落前 20 分钟抵达，以枯树为前景，人物站在水边。逆光拍剪影，侧光拍半身人像。长焦压缩景深效果更好。</p>
+        </div>
+        <div class="spot-tip">
+          <h5>⚠️ 注意</h5>
+          <p>日落后温度骤降约 8°C，务必带外套。周末人多，建议工作日或提前 30 分钟占位。</p>
+        </div>
+        <div class="spot-tags">
+          <span class="spot-tag best">⭐ 高出片</span>
+          <span class="spot-tag angle">逆光 · 剪影</span>
+          <span class="spot-tag gear">建议长焦</span>
+          <span class="spot-tag style">氛围感人像</span>
+        </div>
+        <div class="spot-ftr">
+          <button class="btn btn-primary" onclick="showToast('已加入日程提醒')">📍 加入日程</button>
+          <button class="btn btn-outline" onclick="showToast('跳转地图')">🗺️ 导航</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spot 3: 龙龛码头 -->
+    <div class="spot-card">
+      <div class="spot-hero" style="background-image:linear-gradient(135deg,oklch(0.63 0.14 58),oklch(0.54 0.15 78))">
+        <span class="spot-time-pill">🌄 最佳 07:10—07:40</span>
+        <div class="spot-hero-text">
+          <h3>龙龛码头 · 日出</h3>
+          <p>距离古城最近 · 金色晨光 · 水面倒影</p>
+        </div>
+      </div>
+      <div class="spot-body">
+        <div class="spot-tip">
+          <h5>📐 构图建议</h5>
+          <p>以木栈道为引导线，人物站栈道尽头或侧坐栈道边缘。日出金色光线 + 水面倒影构成完美对称构图。手机即可出片。</p>
+        </div>
+        <div class="spot-tip">
+          <h5>👗 穿搭匹配</h5>
+          <p>深色系（藏蓝/深灰）在金色晨光中形成高级对比。围巾可作道具增加画面层次。日出后脱外套切换到日间穿搭。</p>
+        </div>
+        <div class="spot-tags">
+          <span class="spot-tag best">⭐ 高出片</span>
+          <span class="spot-tag angle">对称 · 倒影</span>
+          <span class="spot-tag gear">手机即可</span>
+          <span class="spot-tag style">文艺质感</span>
+        </div>
+        <div class="spot-ftr">
+          <button class="btn btn-primary" onclick="showToast('已加入日程提醒')">📍 加入日程</button>
+          <button class="btn btn-outline" onclick="showToast('跳转地图')">🗺️ 导航</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spot 4: 潘溪村 S 弯 -->
+    <div class="spot-card">
+      <div class="spot-hero" style="background-image:linear-gradient(135deg,oklch(0.56 0.16 215),oklch(0.48 0.14 235))">
+        <span class="spot-time-pill">☀️ 最佳 10:00—12:00</span>
+        <div class="spot-hero-text">
+          <h3>潘溪村 · S 弯</h3>
+          <p>网红公路 · 上午人少 · 骑行抓拍</p>
+        </div>
+      </div>
+      <div class="spot-body">
+        <div class="spot-tip">
+          <h5>📐 构图建议</h5>
+          <p>站在 S 弯外侧，用公路曲线做引导线。上午阳光侧后方打来，面部光线柔和。尝试骑行中的动态抓拍和公路中央的远景人像。</p>
+        </div>
+        <div class="spot-tip">
+          <h5>⚠️ 避坑</h5>
+          <p>此处为网红打卡点，下午排队严重（有时等 30 分钟+）。强烈建议上午 10 点前到达。避开周末高峰。</p>
+        </div>
+        <div class="spot-tags">
+          <span class="spot-tag best">⭐ 高出片</span>
+          <span class="spot-tag angle">公路 · 引导线</span>
+          <span class="spot-tag gear">手机即可</span>
+          <span class="spot-tag style">日系街拍</span>
+        </div>
+        <div class="spot-ftr">
+          <button class="btn btn-primary" onclick="showToast('已加入日程提醒')">📍 加入日程</button>
+          <button class="btn btn-outline" onclick="showToast('跳转地图')">🗺️ 导航</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ TAB 4: PACKING LIST ════════════ -->
+<div class="page" id="page-pack">
+  <div class="pack-layout">
+    <div class="pack-main">
+      <h2>🎒 打包清单</h2>
+      <p class="hint" style="margin-bottom:28px">基于天气、行程和穿搭建议自动生成 · 点击标记已打包</p>
+
+      <div class="pack-category">
+        <h4>👗 衣物（7 件）</h4>
+        <div class="pack-items">
+          <div class="pack-item packed" onclick="togglePack(this)"><span class="pack-check">✓</span><span class="item-name">碎花连衣裙 ×1</span></div>
+          <div class="pack-item packed" onclick="togglePack(this)"><span class="pack-check">✓</span><span class="item-name">米白针织开衫 ×1</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">白色亚麻套装 ×1</span></div>
+          <div class="pack-item packed" onclick="togglePack(this)"><span class="pack-check">✓</span><span class="item-name">条纹针织衫 ×1</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">宽松牛仔裤 ×1</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">轻薄风衣 ×1</span></div>
+          <div class="pack-item packed" onclick="togglePack(this)"><span class="pack-check">✓</span><span class="item-name">舒适小白鞋 ×1</span></div>
+        </div>
+      </div>
+
+      <div class="pack-category">
+        <h4>🧴 护肤 & 防护（4 件）</h4>
+        <div class="pack-items">
+          <div class="pack-item packed" onclick="togglePack(this)"><span class="pack-check">✓</span><span class="item-name">防晒霜 SPF50+</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">保湿面膜 ×2</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">润唇膏</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">墨镜</span></div>
+        </div>
+      </div>
+
+      <div class="pack-category">
+        <h4>📷 数码 & 配件（3 件）</h4>
+        <div class="pack-items">
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">手机三脚架 / 自拍杆</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">充电宝 20000mAh</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">相机 + 备用电池</span></div>
+        </div>
+      </div>
+
+      <div class="pack-category">
+        <h4>🧣 配饰 & 其他（4 件）</h4>
+        <div class="pack-items">
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">宽檐草帽</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">围巾</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">帆布包</span></div>
+          <div class="pack-item" onclick="togglePack(this)"><span class="pack-check"></span><span class="item-name">便携水杯</span></div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="pack-sidebar">
+      <div class="pack-progress-card">
+        <h4>📦 打包进度</h4>
+        <div class="bar"><div class="bar-fill" id="pack-bar" style="width:28%"></div></div>
+        <p><span class="pack-count" id="packed-num">5</span> <small>/ 18 件已打包</small></p>
+        <p style="font-size:0.78rem;color:var(--ink-tertiary);margin-top:8px;line-height:1.5">
+          💡 建议出发前一晚完成打包<br>
+          📸 相机电池记得提前充满<br>
+          🧴 液体类物品分装到随身包
+        </p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+</div><!-- .app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+  const tabEl = document.querySelector(`.nav-tab[data-tab="${tab}"]`);
+  const pageEl = document.getElementById('page-' + tab);
+  if (tabEl) tabEl.classList.add('active');
+  if (pageEl) pageEl.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+/* Style switcher */
+document.getElementById('style-bar').addEventListener('click', function(e) {
+  if (e.target.classList.contains('style-chip')) {
+    this.querySelectorAll('.style-chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    showToast('风格切换：' + e.target.textContent.trim());
+  }
+});
+
+/* Mode switcher */
+document.getElementById('mode-bar').addEventListener('click', function(e) {
+  if (e.target.classList.contains('mode-btn')) {
+    this.querySelectorAll('.mode-btn').forEach(m => m.classList.remove('active'));
+    e.target.classList.add('active');
+    showToast('筛选：' + e.target.textContent.trim());
+  }
+});
+
+/* Essential items */
+document.getElementById('essentials-grid').addEventListener('click', function(e) {
+  const item = e.target.closest('.essential-item');
+  if (item) item.classList.toggle('checked');
+});
+
+/* Pack toggle */
+function togglePack(el) {
+  el.classList.toggle('packed');
+  el.querySelector('.pack-check').textContent = el.classList.contains('packed') ? '✓' : '';
+  updatePackProgress();
+}
+
+function updatePackProgress() {
+  const total = document.querySelectorAll('.pack-item').length;
+  const packed = document.querySelectorAll('.pack-item.packed').length;
+  document.getElementById('packed-num').textContent = packed;
+  document.getElementById('pack-bar').style.width = ((packed / total) * 100) + '%';
+}
+
+/* Also bind packing items to toggle */
+document.querySelectorAll('.pack-item').forEach(item => {
+  item.addEventListener('click', function() { togglePack(this); });
+});
+
+/* Redirect outfit/spots clicks from detail page to relevant tabs */
+document.querySelectorAll('.tl-icon').forEach(icon => {
+  icon.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const tab = this.textContent.includes('📸') ? 'spots' : 'outfit';
+    switchTab(tab);
+  });
+});
+</script>
+
+</body>
+</html>

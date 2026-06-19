@@ -1,0 +1,115 @@
+/* ═══════════════ Responsive ═══════════════ */
+
+/* -- 1200px: moderate shrink -- */
+@media (max-width: 1200px) {
+  .page { padding: 28px 28px 50px; }
+  .dest-scroll { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .dp-hero { height: 130px; }
+  .trip-cards { grid-template-columns: repeat(2, 1fr); }
+  .community-grid { grid-template-columns: repeat(2, 1fr); }
+  .essentials-grid { grid-template-columns: repeat(3, 1fr); }
+  .home-hero { padding: 44px 0 36px; }
+  .home-hero h1 { font-size: 2.2rem; }
+}
+
+/* -- 900px: tablet landscape -- */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .sidebar-overlay.show { display: block; }
+  .mobile-bar { display: flex; }
+  .page { padding: 20px 18px 40px; }
+
+  .app-layout { display: block; }
+  .home-hero { padding: 36px 0 28px; text-align: left; }
+  .home-hero h1 { font-size: 1.85rem; max-width: 100%; }
+  .home-hero p { max-width: 100%; }
+
+  .trip-cards { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .community-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .dest-scroll { grid-template-columns: 1fr; gap: 16px; }
+  .dp-hero { height: 180px; }
+  .dp-body { padding: 16px; }
+  .compare-layout { grid-template-columns: 1fr; gap: 14px; }
+  .day-grid { grid-template-columns: 1fr; gap: 14px; }
+  .spots-grid { grid-template-columns: 1fr; gap: 14px; }
+  .outfit-cards { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .essentials-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .start-form-wrap { flex-direction: column; }
+  .start-form { max-width: 100%; }
+  .gen-preview { position: static; width: 100%; flex: 0 0 auto; }
+  .budget-strip { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .pack-layout { grid-template-columns: 1fr; }
+  .outfit-top-row { flex-direction: column; gap: 16px; }
+  .weather-badge { flex: 0 0 auto; width: 100%; }
+
+  .sub-tabs { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+  .sub-tabs::-webkit-scrollbar { display: none; }
+  .sub-tab { white-space: nowrap; flex-shrink: 0; }
+
+  .style-bar { flex-wrap: wrap; }
+  .spot-mode-bar { flex-wrap: wrap; }
+
+  /* Mobile sidebar slides in from left */
+  .sidebar {
+    display: flex; position: fixed; top: 0; left: 0; height: 100vh; z-index: 160;
+    transform: translateX(-100%); transition: transform 0.25s ease;
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar.open { transform: translateX(0); }
+}
+
+/* -- 540px: tablet portrait / large phone -- */
+@media (max-width: 540px) {
+  .page { padding: 16px 14px 36px; }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.15rem; }
+
+  .home-hero h1 { font-size: 1.55rem; }
+  .home-hero p { font-size: 0.9rem; }
+  .btn-lg { padding: 12px 24px; font-size: 0.9rem; }
+
+  .trip-cards { grid-template-columns: 1fr; }
+  .community-grid { grid-template-columns: 1fr; }
+  .outfit-cards { grid-template-columns: 1fr; }
+  .essentials-grid { grid-template-columns: 1fr 1fr; }
+  .budget-strip { grid-template-columns: repeat(2, 1fr); }
+  .pack-items { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+
+  .detail-meta { gap: 6px; }
+  .detail-meta span { font-size: 0.75rem; padding: 4px 10px; }
+  .steps-bar { flex-wrap: wrap; gap: 4px; }
+  .step-line { width: 16px; }
+  .step-label { font-size: 0.74rem; }
+
+  .compare-metrics { gap: 6px; }
+  .compare-card .price { font-size: 1.4rem; }
+
+  .chip-row { gap: 5px; }
+  .chip, .style-chip, .spot-mode { font-size: 0.78rem; padding: 6px 12px; }
+  .pref-label { width: 70px; font-size: 0.78rem; }
+  .nl-input { font-size: 0.8rem; }
+  .nl-modify { padding: 10px 12px; gap: 6px; }
+
+  .detail-panel { width: 100vw; max-width: 100vw; border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 90vh; }
+  .dp-hero-img { height: 180px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .dp-content { padding: 16px 18px 28px; }
+}
+
+/* -- 1400px+: large screens use more columns -- */
+@media (min-width: 1400px) {
+  .trip-cards { grid-template-columns: repeat(4, 1fr); }
+  .community-grid { grid-template-columns: repeat(4, 1fr); }
+  .outfit-cards { grid-template-columns: repeat(4, 1fr); }
+  .essentials-grid { grid-template-columns: repeat(6, 1fr); }
+  .spots-grid { grid-template-columns: repeat(3, 1fr); }
+  .dp-hero { height: 200px; }
+}
+@media (min-width: 1800px) {
+  .spots-grid { grid-template-columns: repeat(4, 1fr); }
+  .trip-cards { grid-template-columns: repeat(5, 1fr); }
+  .community-grid { grid-template-columns: repeat(5, 1fr); }
+  .outfit-cards { grid-template-columns: repeat(5, 1fr); }
+  .dp-hero { height: 240px; }
+}

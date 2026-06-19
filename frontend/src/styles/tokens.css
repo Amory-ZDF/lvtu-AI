@@ -1,0 +1,30 @@
+/* ═══════════════ Design Tokens ═══════════════ */
+:root {
+  --brand: oklch(0.58 0.18 18);
+  --brand-deep: oklch(0.42 0.16 18);
+  --brand-muted: oklch(0.85 0.035 18);
+  --brand-ghost: oklch(0.95 0.008 18);
+  --sky: oklch(0.50 0.14 255);
+  --sky-muted: oklch(0.90 0.025 255);
+  --teal: oklch(0.55 0.15 175);
+  --teal-muted: oklch(0.90 0.03 175);
+  --amber: oklch(0.72 0.16 80);
+  --amber-muted: oklch(0.92 0.06 85);
+  --surface: oklch(0.985 0 0);
+  --surface-elevated: oklch(1 0 0);
+  --surface-subtle: oklch(0.972 0.002 18);
+  --ink: oklch(0.14 0.005 260);
+  --ink-secondary: oklch(0.42 0.01 260);
+  --ink-tertiary: oklch(0.60 0.01 260);
+  --border: oklch(0.90 0.005 260);
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.05);
+  --shadow-md: 0 4px 20px oklch(0 0 0 / 0.07);
+  --shadow-lg: 0 16px 48px oklch(0 0 0 / 0.09);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+  --sidebar-w: 200px;
+}

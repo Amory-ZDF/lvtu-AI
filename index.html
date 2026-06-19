@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>旅图 · Lv Tu</title>
+<style>
+/* ═══════════════ Design Tokens ═══════════════ */
+:root {
+  --brand: oklch(0.58 0.18 18);
+  --brand-deep: oklch(0.42 0.16 18);
+  --brand-muted: oklch(0.85 0.035 18);
+  --brand-ghost: oklch(0.95 0.008 18);
+  --sky: oklch(0.50 0.14 255);
+  --sky-muted: oklch(0.90 0.025 255);
+  --teal: oklch(0.55 0.15 175);
+  --teal-muted: oklch(0.90 0.03 175);
+  --amber: oklch(0.72 0.16 80);
+  --amber-muted: oklch(0.92 0.06 85);
+  --surface: oklch(0.985 0 0);
+  --surface-elevated: oklch(1 0 0);
+  --surface-subtle: oklch(0.972 0.002 18);
+  --ink: oklch(0.14 0.005 260);
+  --ink-secondary: oklch(0.42 0.01 260);
+  --ink-tertiary: oklch(0.60 0.01 260);
+  --border: oklch(0.90 0.005 260);
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.05);
+  --shadow-md: 0 4px 20px oklch(0 0 0 / 0.07);
+  --shadow-lg: 0 16px 48px oklch(0 0 0 / 0.09);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+  --sidebar-w: 200px;
+}
+
+/* ═══════════════ Reset & Base ═══════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  background: var(--surface); color: var(--ink); line-height: 1.6; min-height: 100vh;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 55% 45% at 18% 0%, oklch(0.58 0.18 18 / 0.035), transparent),
+    radial-gradient(ellipse 45% 45% at 85% 100%, oklch(0.50 0.14 255 / 0.025), transparent);
+}
+
+/* ═══════════════ Layout ═══════════════ */
+.app-layout { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+/* ═══════════════ Sidebar ═══════════════ */
+.sidebar {
+  width: var(--sidebar-w); flex-shrink: 0;
+  background: oklch(1 0 0 / 0.82); backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border); padding: 24px 16px;
+  display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+}
+.sidebar-logo {
+  font-size: 1.35rem; font-weight: 800; letter-spacing: -0.03em; color: var(--brand);
+  margin-bottom: 28px; padding: 0 8px; cursor: pointer;
+}
+.sidebar-logo span { color: var(--ink); }
+
+/* ── Add / Remove buttons ── */
+.add-btn {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 5px 12px; border-radius: var(--radius-full);
+  border: none; background: transparent;
+  font-size: 0.78rem; font-weight: 500; color: var(--ink-tertiary);
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
+  margin-top: 6px;
+}
+.add-btn:hover { color: var(--brand); background: var(--brand-ghost); }
+.add-btn::before { content: '+'; font-size: 1rem; font-weight: 400; }
+
+/* ── Natural language modification bar ── */
+.nl-modify {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; margin-bottom: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-subtle); border: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+.nl-modify:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px oklch(0.58 0.18 18 / 0.08); }
+.nl-icon { font-size: 1.2rem; flex-shrink: 0; opacity: 0.6; }
+.nl-input {
+  flex: 1; border: none; background: transparent;
+  font-size: 0.88rem; font-family: inherit; color: var(--ink);
+  outline: none; padding: 0;
+}
+.nl-input::placeholder { color: var(--ink-tertiary); }
+.nl-send {
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: var(--brand); color: #fff; font-size: 1rem;
+  cursor: pointer; flex-shrink: 0; display: flex; align-items: center;
+  justify-content: center; transition: all 0.15s; font-family: inherit;
+}
+.nl-send:hover { background: var(--brand-deep); transform: scale(1.05); }
+.del-btn {
+  width: 22px; height: 22px; border-radius: 50%; border: 1px solid transparent;
+  background: transparent; color: var(--ink-tertiary); cursor: pointer;
+  font-size: 0.9rem; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; font-family: inherit; flex-shrink: 0; opacity: 0;
+  padding: 0; line-height: 1;
+}
+.pack-item:hover .del-btn { opacity: 1; }
+.del-btn:hover { background: oklch(0.7 0.18 22); color: #fff; border-color: oklch(0.7 0.18 22); }
+
+/* Editable card styles */
+.pack-item { position: relative; }
+.pack-item .del-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); opacity: 0; }
+
+/* Spot card delete */
+.spot-card { position: relative; }
+.spot-card .spot-del {
+  position: absolute; top: 10px; left: 10px; z-index: 2;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: oklch(0 0 0 / 0.45); backdrop-filter: blur(6px);
+  color: #fff; border: none; cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; opacity: 0;
+}
+.spot-card:hover .spot-del { opacity: 1; }
+.spot-card .spot-del:hover { background: oklch(0.7 0.18 22); }
+.side-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.side-nav a {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: var(--radius-sm); text-decoration: none;
+  color: var(--ink-secondary); font-size: 0.9rem; font-weight: 500;
+  transition: all 0.15s ease;
+}
+.side-nav a:hover { background: var(--surface-subtle); color: var(--ink); }
+.side-nav a.active { background: var(--brand-ghost); color: var(--brand); font-weight: 650; }
+.side-nav a .nav-icon { font-size: 1.05rem; width: 22px; text-align: center; }
+
+.side-user {
+  display: flex; align-items: center; gap: 10px; padding-top: 14px;
+  border-top: 1px solid var(--border); margin-top: auto;
+}
+.side-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand), oklch(0.52 0.16 45));
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 0.78rem; flex-shrink: 0;
+}
+.side-user-info { font-size: 0.78rem; line-height: 1.3; }
+.side-user-info strong { display: block; font-size: 0.8rem; }
+
+/* ═══════════════ Main ═══════════════ */
+.main { flex: 1; min-width: 0; }
+.page { display: none; padding: 32px 48px 60px 40px; animation: fadeIn 0.3s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.15; }
+h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.025em; }
+h3 { font-size: 1.05rem; font-weight: 650; }
+.hint { color: var(--ink-tertiary); font-size: 0.88rem; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  font-weight: 650; font-family: inherit; border: none; text-decoration: none;
+  transition: all 0.2s ease; white-space: nowrap;
+}
+.btn-primary {
+  background: var(--brand); color: #fff; padding: 11px 26px;
+  border-radius: var(--radius-full); font-size: 0.92rem;
+  box-shadow: 0 4px 18px oklch(0.58 0.18 18 / 0.28);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px oklch(0.58 0.18 18 / 0.38); }
+.btn-lg { padding: 14px 34px; font-size: 1rem; }
+.btn-secondary {
+  background: var(--surface-elevated); color: var(--ink);
+  padding: 10px 20px; border-radius: var(--radius-full);
+  font-size: 0.88rem; border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--brand); color: var(--brand); }
+.btn-outline {
+  background: transparent; color: var(--brand);
+  padding: 10px 20px; border-radius: var(--radius-full);
+  font-size: 0.88rem; border: 2px solid var(--brand);
+}
+.btn-outline:hover { background: var(--brand); color: #fff; }
+
+/* ═══════════════ Step indicator ═══════════════ */
+.steps-bar {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 28px;
+}
+.step-item { display: flex; align-items: center; gap: 8px; }
+.step-circle {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700; color: var(--ink-tertiary);
+  background: var(--surface-subtle); border: 2px solid var(--border);
+}
+.step-circle.done { background: var(--brand); border-color: var(--brand); color: #fff; }
+.step-circle.current { border-color: var(--brand); color: var(--brand); background: var(--brand-ghost); }
+.step-line { width: 28px; height: 2px; background: var(--border); border-radius: 1px; }
+.step-line.done { background: var(--brand); }
+.step-label { font-size: 0.82rem; color: var(--ink-tertiary); }
+.step-label.active { color: var(--ink); font-weight: 650; }
+.step-label.done { color: var(--brand); }
+
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem;
+  color: var(--ink-tertiary); cursor: pointer; margin-bottom: 16px; transition: color 0.15s;
+  border: none; background: none; font-family: inherit;
+}
+.back-link:hover { color: var(--brand); }
+
+/* ═══════════════ HOME ═══════════════ */
+.home-hero {
+  padding: 60px 0 48px; text-align: center; position: relative;
+}
+.home-hero h1 { font-size: 2.6rem; max-width: 600px; margin: 0 auto 10px; }
+.home-hero .highlight {
+  color: var(--brand); position: relative; display: inline-block;
+}
+.home-hero .highlight::after {
+  content: ''; position: absolute; bottom: 2px; left: 0; right: 0;
+  height: 10px; background: var(--brand-muted); border-radius: 5px; z-index: -1; opacity: 0.7;
+}
+.home-hero p { font-size: 1rem; color: var(--ink-secondary); max-width: 440px; margin: 0 auto 24px; }
+
+.my-trips-section { margin-top: 8px; }
+.my-trips-section .section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+.my-trips-section .section-head a { color: var(--brand); font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+.trip-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.trip-card {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; cursor: pointer;
+  transition: all 0.2s ease;
+}
+.trip-card:hover { border-color: var(--brand); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.trip-card .card-img {
+  height: 130px; background-size: cover; background-position: center;
+  position: relative;
+}
+.trip-card .card-status {
+  position: absolute; top: 10px; right: 10px;
+  padding: 4px 10px; border-radius: var(--radius-full);
+  font-size: 0.68rem; font-weight: 650;
+}
+.trip-card .card-status.draft { background: oklch(1 0 0 / 0.85); color: var(--ink-secondary); backdrop-filter: blur(6px); }
+.trip-card .card-status.confirmed { background: var(--teal); color: #fff; }
+.trip-card .card-body { padding: 14px 16px; }
+.trip-card .card-body h4 { font-size: 0.92rem; margin-bottom: 2px; }
+.trip-card .card-body p { font-size: 0.78rem; color: var(--ink-tertiary); }
+.trip-card-new {
+  border: 2px dashed var(--border); background: var(--surface-subtle);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 180px; gap: 8px; cursor: pointer; transition: all 0.2s ease;
+  border-radius: var(--radius-lg);
+}
+.trip-card-new:hover { border-color: var(--brand); background: var(--brand-ghost); }
+.trip-card-new .plus { font-size: 2rem; color: var(--ink-tertiary); }
+.trip-card-new p { font-size: 0.85rem; color: var(--ink-tertiary); }
+
+/* ═══════════════ START TRIP ═══════════════ */
+.start-form-wrap { display: flex; gap: 36px; align-items: flex-start; }
+.start-form { flex: 1; max-width: 540px; }
+.form-card {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm);
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 0.83rem; font-weight: 600; color: var(--ink-secondary); margin-bottom: 5px; }
+.form-group input, .form-group select {
+  width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 0.9rem; font-family: inherit; color: var(--ink);
+  background: var(--surface-subtle); transition: border-color 0.2s;
+}
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px oklch(0.58 0.18 18 / 0.10); }
+.form-group input[type=date] { color: var(--ink); font-family: inherit; }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+.chip {
+  padding: 7px 15px; border-radius: var(--radius-full); border: 1px solid var(--border);
+  font-size: 0.83rem; cursor: pointer; transition: all 0.15s; background: var(--surface-elevated);
+  user-select: none; font-family: inherit;
+}
+.chip.selected { background: var(--brand); color: #fff; border-color: var(--brand); }
+.chip:hover:not(.selected) { border-color: var(--brand); }
+
+.slider-wrap { margin-bottom: 16px; }
+.slider-wrap input[type=range] { width: 100%; accent-color: var(--brand); }
+.slider-labels { display: flex; justify-content: space-between; font-size: 0.73rem; color: var(--ink-tertiary); margin-top: 3px; }
+
+/* Preference sliders */
+.pref-sliders { display: flex; flex-direction: column; gap: 10px; }
+.pref-row { display: flex; align-items: center; gap: 10px; }
+.pref-label { font-size: 0.85rem; flex-shrink: 0; width: 90px; color: var(--ink-secondary); }
+.pref-row input[type=range] { flex: 1; min-width: 0; width: 100%; accent-color: var(--brand); appearance: none; -webkit-appearance: none; background: transparent; margin: 0; padding: 0; }
+.pref-row input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--border); }
+.pref-row input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--brand); margin-top: -6px; cursor: pointer; box-shadow: 0 1px 4px oklch(0 0 0 / 0.15); }
+.pref-row input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--border); border: none; }
+.pref-row input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--brand); border: none; cursor: pointer; }
+.pref-val { font-size: 0.8rem; font-weight: 700; color: var(--brand); min-width: 32px; text-align: right; flex-shrink: 0; }
+
+.gen-preview {
+  flex: 0 0 300px; position: sticky; top: 80px;
+}
+.gen-card {
+  background: var(--surface-subtle); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px; text-align: center; display: none;
+}
+.gen-card.show { display: block; }
+.gen-card .spinner {
+  width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--border);
+  border-top-color: var(--brand); animation: spin 0.8s linear infinite; margin: 0 auto 14px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.gen-card p { font-size: 0.88rem; color: var(--ink-secondary); }
+.gen-steps { font-size: 0.78rem; color: var(--ink-tertiary); margin-top: 6px; }
+
+/* ═══════════════ DESTINATIONS ═══════════════ */
+.dest-scroll { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 16px; align-items: start; }
+.dest-preview {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  transition: all 0.2s; display: flex; flex-direction: column;
+}
+.dest-preview:hover { border-color: var(--brand); box-shadow: var(--shadow-md); }
+.dest-preview.recommended { border: 2px solid var(--brand); }
+.dp-hero {
+  height: 160px; background-size: cover; background-position: center;
+  position: relative; display: flex; align-items: flex-end; padding: 12px;
+}
+.dp-badge {
+  position: absolute; top: 10px; right: 10px;
+  padding: 3px 10px; border-radius: var(--radius-full);
+  background: var(--brand); color: #fff; font-size: 0.7rem; font-weight: 700;
+}
+.dp-body { padding: 16px; display: flex; flex-direction: column; flex: 1; }
+.dp-header { margin-bottom: 10px; }
+.dp-header h3 { font-size: 1rem; margin-bottom: 1px; }
+.dp-header p { font-size: 0.75rem; color: var(--ink-tertiary); }
+.dp-price { font-size: 1.15rem; font-weight: 800; color: var(--brand); margin: 8px 0; }
+.dp-price span { font-size: 0.72rem; color: var(--ink-tertiary); font-weight: 400; }
+.dp-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+.dp-tags .chip { font-size: 0.7rem; padding: 3px 9px; }
+.dp-reason { font-size: 0.78rem; color: var(--ink-secondary); line-height: 1.5; margin-bottom: 12px; }
+.dp-sneak {
+  background: var(--surface-subtle); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin-bottom: 10px;
+}
+.dp-sneak h4 { font-size: 0.73rem; color: var(--ink-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+.dp-stops { display: flex; flex-direction: column; gap: 5px; }
+.dp-stop { font-size: 0.76rem; color: var(--ink); display: flex; gap: 6px; align-items: baseline; line-height: 1.4; }
+.dp-stop span { font-size: 0.62rem; font-weight: 700; padding: 1px 6px; border-radius: var(--radius-full); background: var(--brand); color: #fff; flex-shrink: 0; }
+.dp-highlights { display: flex; gap: 4px; flex-wrap: wrap; }
+.dp-highlights span { padding: 3px 8px; border-radius: var(--radius-full); background: var(--surface-elevated); border: 1px solid var(--border); font-size: 0.72rem; color: var(--ink-secondary); }
+.dp-actions { display: flex; flex-direction: column; gap: 6px; margin-top: auto; padding-top: 12px; }
+.dp-actions .btn { width: 100%; justify-content: center; font-size: 0.8rem; padding: 9px 0; }
+
+/* ═══════════════ COMPARISON ═══════════════ */
+.compare-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 24px; }
+.compare-card {
+  background: var(--surface-elevated); border: 2px solid var(--border);
+  border-radius: var(--radius-lg); padding: 28px; cursor: pointer;
+  transition: all 0.2s; position: relative;
+}
+.compare-card:hover { border-color: var(--brand); }
+.compare-card.selected { border-color: var(--brand); background: var(--brand-ghost); }
+.compare-card h2 { margin-bottom: 2px; }
+.compare-card .subtitle { font-size: 0.85rem; color: var(--ink-tertiary); margin-bottom: 14px; }
+.compare-card .price { font-size: 1.8rem; font-weight: 800; color: var(--brand); margin-bottom: 14px; }
+.compare-card .price small { font-size: 0.72rem; color: var(--ink-tertiary); font-weight: 400; }
+.compare-metrics { display: flex; flex-direction: column; gap: 10px; }
+.metric-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.metric-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.metric-dot.high { background: var(--teal); }
+.metric-dot.mid { background: var(--sky); }
+.metric-dot.low { background: var(--brand-muted); }
+
+/* ═══════════════ TRIP DETAIL / WORKBENCH ═══════════════ */
+.detail-header { margin-bottom: 24px; }
+.detail-header h1 { margin-bottom: 4px; }
+.detail-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.detail-meta span {
+  padding: 5px 12px; border-radius: var(--radius-full); border: 1px solid var(--border);
+  background: var(--surface-elevated); font-size: 0.8rem; color: var(--ink-secondary);
+}
+
+/* Sub-tabs inside detail page */
+.sub-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+.sub-tab {
+  padding: 10px 18px; font-size: 0.85rem; font-weight: 600; color: var(--ink-tertiary);
+  cursor: pointer; transition: all 0.15s ease; border: none; background: none;
+  font-family: inherit; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.sub-tab:hover { color: var(--ink-secondary); }
+.sub-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+.sub-panel { display: none; animation: fadeIn 0.25s ease; }
+.sub-panel.active { display: block; }
+
+/* -- Sub: Itinerary -- */
+.day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+.day-panel { background: var(--surface-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.day-panel-header { padding: 14px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+.day-num { width: 38px; height: 38px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.82rem; color: #fff; flex-shrink: 0; }
+.day-num.d1 { background: var(--brand); }
+.day-num.d2 { background: var(--sky); }
+.day-panel-header h4 { font-size: 0.88rem; }
+.day-panel-header p { font-size: 0.74rem; color: var(--ink-tertiary); }
+
+/* Stop cards */
+.stop-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.stop-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: var(--surface-elevated);
+  cursor: grab; transition: all 0.15s; position: relative;
+}
+.stop-card:hover { border-color: var(--brand); box-shadow: var(--shadow-xs); }
+.stop-card:active { cursor: grabbing; }
+.stop-card.dragging { opacity: 0.4; border-style: dashed; }
+.stop-card.drag-over { border-color: var(--brand); background: var(--brand-ghost); box-shadow: 0 0 0 2px oklch(0.58 0.18 18 / 0.15); }
+.stop-handle {
+  color: var(--ink-tertiary); font-size: 1rem; cursor: grab;
+  flex-shrink: 0; user-select: none; line-height: 1; padding: 0 2px;
+}
+.stop-time {
+  font-size: 0.78rem; font-weight: 650; color: var(--brand);
+  width: 42px; flex-shrink: 0; font-variant-numeric: tabular-nums;
+  background: var(--brand-ghost); padding: 4px 0; border-radius: var(--radius-sm); text-align: center;
+}
+.stop-body { flex: 1; min-width: 0; }
+.stop-body strong { display: block; font-size: 0.85rem; }
+.stop-body span { font-size: 0.74rem; color: var(--ink-tertiary); }
+.stop-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.stop-act {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--surface-elevated); cursor: pointer; font-size: 0.75rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; font-family: inherit; padding: 0;
+}
+.stop-act:hover { border-color: var(--brand); background: var(--brand-ghost); }
+.stop-act.del:hover { border-color: oklch(0.6 0.18 22); background: oklch(0.9 0.04 22); color: oklch(0.55 0.16 22); }
+
+/* Nicer add button inside stop list */
+.add-stop-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px; border-radius: var(--radius-md);
+  border: 1.5px dashed var(--border); background: transparent;
+  font-size: 0.84rem; color: var(--ink-tertiary); cursor: pointer;
+  transition: all 0.2s; font-family: inherit; width: 100%;
+}
+.add-stop-btn:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-ghost); }
+.add-stop-btn .plus-circle {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px dashed var(--ink-tertiary); display: flex; align-items: center;
+  justify-content: center; font-size: 0.9rem; transition: all 0.2s;
+}
+.add-stop-btn:hover .plus-circle { border-color: var(--brand); }
+
+.budget-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; padding: 18px 22px; border-radius: var(--radius-md); background: var(--surface-subtle); border: 1px solid var(--border); text-align: center; margin-bottom: 18px; }
+.budget-strip .item { font-size: 0.8rem; color: var(--ink-secondary); }
+.budget-strip .item strong { display: block; font-size: 1.05rem; color: var(--brand); margin-top: 2px; }
+.notes-bar { padding: 14px 18px; border-radius: var(--radius-md); background: var(--sky-muted); font-size: 0.82rem; color: var(--ink-secondary); line-height: 1.6; }
+
+/* -- Sub: Outfit -- */
+.outfit-top-row { display: flex; gap: 32px; margin-bottom: 24px; align-items: flex-start; }
+.outfit-intro { flex: 1; }
+.weather-badge {
+  flex: 0 0 260px; padding: 16px 20px; border-radius: var(--radius-lg);
+  background: var(--sky-muted); display: flex; gap: 12px; align-items: center;
+  font-size: 0.82rem;
+}
+.weather-badge .icon { font-size: 2.2rem; }
+.weather-badge strong { display: block; font-size: 0.85rem; }
+
+.style-bar { display: flex; gap: 7px; margin-bottom: 24px; }
+.style-chip {
+  padding: 8px 18px; border-radius: var(--radius-full); border: 1.5px solid var(--border);
+  font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  background: var(--surface-elevated); font-family: inherit;
+}
+.style-chip:hover { border-color: var(--brand); color: var(--brand); }
+.style-chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+.outfit-day { margin-bottom: 30px; }
+.outfit-day h3 { margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.outfit-day h3 .day-badge { padding: 4px 12px; border-radius: var(--radius-full); font-size: 0.72rem; font-weight: 700; color: #fff; }
+.outfit-day h3 .day-badge.d1 { background: var(--brand); }
+.outfit-day h3 .day-badge.d2 { background: var(--sky); }
+
+.outfit-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.outfit-card {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; transition: all 0.15s; cursor: pointer;
+}
+.outfit-card:hover { border-color: var(--brand); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.outfit-visual { height: 140px; display: flex; align-items: flex-end; justify-content: center; padding: 14px; position: relative; }
+.outfit-visual .scene-tag {
+  position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: var(--radius-full);
+  background: oklch(0 0 0 / 0.4); backdrop-filter: blur(5px);
+  color: #fff; font-size: 0.66rem; font-weight: 600;
+}
+.outfit-visual .emoji { font-size: 3rem; filter: drop-shadow(0 3px 8px rgba(0,0,0,0.1)); }
+.outfit-body { padding: 12px 14px; }
+.outfit-body h5 { font-size: 0.84rem; margin-bottom: 2px; }
+.outfit-body p { font-size: 0.75rem; color: var(--ink-tertiary); line-height: 1.4; }
+
+.essentials-block { margin-top: 32px; }
+.essentials-block h3 { margin-bottom: 12px; }
+.essentials-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ess-item {
+  padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface-elevated); font-size: 0.82rem; display: flex; align-items: center; gap: 7px;
+  cursor: pointer; transition: all 0.15s;
+}
+.ess-item:hover { border-color: var(--brand); }
+.ess-item.checked { background: var(--brand-ghost); border-color: var(--brand-muted); text-decoration: line-through; text-decoration-color: var(--brand); }
+
+/* -- Sub: Photo Spots -- */
+.spot-mode-bar { display: flex; gap: 6px; margin-bottom: 22px; }
+.spot-mode {
+  padding: 8px 18px; border-radius: var(--radius-full); border: 1.5px solid var(--border);
+  font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  background: var(--surface-elevated); font-family: inherit;
+}
+.spot-mode:hover { border-color: var(--brand); color: var(--brand); }
+.spot-mode.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+.spots-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.spot-card {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; transition: all 0.2s; cursor: pointer;
+}
+.spot-card:hover { border-color: var(--brand); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.spot-hero {
+  height: 180px; display: flex; align-items: flex-end; padding: 16px;
+  position: relative;
+}
+.spot-hero::before { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 40%, oklch(0 0 0 / 0.5)); }
+.spot-hero-text { position: relative; z-index: 1; color: #fff; }
+.spot-hero-text h3 { font-size: 1.05rem; margin-bottom: 1px; }
+.spot-hero-text p { font-size: 0.78rem; opacity: 0.9; }
+.spot-time-pill {
+  position: absolute; top: 12px; right: 12px; z-index: 1;
+  padding: 4px 12px; border-radius: var(--radius-full);
+  background: oklch(1 0 0 / 0.88); backdrop-filter: blur(7px);
+  font-size: 0.72rem; font-weight: 700; color: var(--brand);
+}
+.spot-body { padding: 16px 18px; }
+.spot-tip { margin-bottom: 10px; }
+.spot-tip h5 { font-size: 0.8rem; color: var(--ink-secondary); margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+.spot-tip p { font-size: 0.78rem; color: var(--ink-secondary); line-height: 1.5; }
+.spot-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 14px; }
+.spot-tag { padding: 3px 9px; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 650; }
+.spot-tag.best { background: var(--amber-muted); color: oklch(0.55 0.14 80); }
+.spot-tag.angle { background: var(--sky-muted); color: oklch(0.45 0.12 255); }
+.spot-tag.gear { background: var(--teal-muted); color: oklch(0.47 0.12 170); }
+.spot-tag.style { background: var(--brand-ghost); color: var(--brand); }
+
+/* -- Sub: Packing -- */
+.pack-layout { display: grid; grid-template-columns: 1fr 280px; gap: 28px; align-items: start; }
+.pack-category { margin-bottom: 22px; }
+.pack-category h4 { font-size: 0.75rem; color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.pack-items { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.pack-item {
+  display: flex; align-items: center; gap: 9px; padding: 10px 12px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface-elevated); cursor: pointer; transition: all 0.15s; font-size: 0.83rem;
+}
+.pack-item:hover { border-color: var(--brand); }
+.pack-item.packed { background: var(--brand-ghost); border-color: var(--brand-muted); }
+.pack-item.packed .item-name { text-decoration: line-through; text-decoration-color: var(--brand); }
+.pack-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; transition: all 0.15s; }
+.pack-item.packed .pack-check { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+.pack-add-row { display: flex; gap: 6px; margin-top: 8px; }
+.pack-input {
+  flex: 1; padding: 8px 12px; border: 1px dashed var(--border); border-radius: var(--radius-sm);
+  font-size: 0.82rem; font-family: inherit; background: var(--surface-subtle); color: var(--ink);
+  transition: border-color 0.15s;
+}
+.pack-input:focus { outline: none; border-color: var(--brand); border-style: solid; }
+.pack-input::placeholder { color: var(--ink-tertiary); }
+
+.pack-sidebar-card {
+  position: sticky; top: 24px; background: var(--surface-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px;
+}
+.pack-sidebar-card h4 { font-size: 0.8rem; color: var(--ink-secondary); margin-bottom: 10px; }
+.pack-sidebar-card .bar { height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+.pack-sidebar-card .bar-fill { height: 100%; border-radius: 4px; background: var(--brand); transition: width 0.3s; }
+.pack-count { font-size: 1.4rem; font-weight: 800; color: var(--brand); }
+.pack-count small { font-size: 0.76rem; color: var(--ink-tertiary); font-weight: 400; }
+
+/* ═══════════════ COMMUNITY ═══════════════ */
+.community-header { margin-bottom: 24px; }
+.community-header h2 { margin-bottom: 4px; }
+.community-tags { display: flex; gap: 7px; margin-bottom: 22px; flex-wrap: wrap; }
+.community-tags .chip { font-size: 0.82rem; padding: 7px 16px; }
+.community-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.post-card {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; cursor: pointer;
+  transition: all 0.2s;
+}
+.post-card:hover { border-color: var(--brand); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+.post-card .post-img { height: 150px; background-size: cover; background-position: center; }
+.post-card .post-body { padding: 14px; }
+.post-card .post-body h4 { font-size: 0.88rem; margin-bottom: 3px; }
+.post-card .post-body p { font-size: 0.76rem; color: var(--ink-tertiary); }
+.post-card .post-author { display: flex; align-items: center; gap: 8px; padding: 0 14px 14px; font-size: 0.78rem; color: var(--ink-secondary); }
+.post-card .post-author .pa { width: 22px; height: 22px; border-radius: 50%; background: var(--brand-muted); }
+
+/* ═══════════════ Detail modal popup ═══════════════ */
+.detail-overlay {
+  position: fixed; inset: 0; background: oklch(0 0 0 / 0.4); z-index: 500;
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  display: flex; align-items: center; justify-content: center;
+}
+.detail-overlay.show { opacity: 1; pointer-events: auto; }
+.detail-panel {
+  background: var(--surface); border-radius: var(--radius-xl);
+  width: 560px; max-width: 94vw; max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 24px 64px oklch(0 0 0 / 0.18);
+  transform: scale(0.92) translateY(16px); opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.detail-overlay.show .detail-panel { transform: scale(1) translateY(0); opacity: 1; }
+.dp-close {
+  position: sticky; top: 12px; float: right; z-index: 10; margin-right: 12px;
+  width: 34px; height: 34px; border-radius: 50%; border: none;
+  background: oklch(1 0 0 / 0.85); backdrop-filter: blur(8px);
+  font-size: 1.2rem; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; color: var(--ink); transition: all 0.15s;
+  box-shadow: var(--shadow-sm); font-family: inherit;
+}
+.dp-close:hover { background: var(--ink); color: #fff; }
+.dp-hero-img {
+  width: 100%; height: 220px; background-size: cover; background-position: center;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0; margin-top: -48px;
+}
+.dp-content { padding: 20px 28px 32px; }
+.dp-content h2 { font-size: 1.25rem; margin-bottom: 4px; }
+.dp-content .dp-subtitle { font-size: 0.85rem; color: var(--ink-tertiary); margin-bottom: 16px; }
+.dp-metrics { display: flex; gap: 14px; margin-bottom: 18px; }
+.dp-metric {
+  flex: 1; text-align: center; padding: 12px 8px;
+  border-radius: var(--radius-md); background: var(--surface-subtle);
+}
+.dp-metric .val { font-size: 1.2rem; font-weight: 800; color: var(--brand); }
+.dp-metric .lbl { font-size: 0.7rem; color: var(--ink-tertiary); margin-top: 2px; }
+.dp-metric.stars .val { font-size: 0.95rem; letter-spacing: 2px; }
+.dp-section { margin-bottom: 18px; }
+.dp-section h4 { font-size: 0.76rem; color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.dp-section p { font-size: 0.86rem; color: var(--ink-secondary); line-height: 1.7; }
+.dp-location { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--radius-md); background: var(--surface-subtle); margin-bottom: 18px; font-size: 0.86rem; }
+.dp-location .pin { font-size: 1.1rem; }
+.dp-tags-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 16px; }
+.dp-link-card {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+  margin-bottom: 8px; background: var(--surface-elevated);
+}
+.dp-link-card:hover { border-color: var(--brand); background: var(--brand-ghost); }
+.dp-link-card .link-label { font-size: 0.84rem; font-weight: 600; }
+.dp-link-card .link-arrow { color: var(--brand); font-size: 1.1rem; }
+.dp-items-list { display: flex; flex-direction: column; gap: 5px; }
+.dp-item-row { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: var(--radius-sm); background: var(--surface-subtle); font-size: 0.84rem; }
+
+@media (max-width: 768px) {
+  .detail-panel { width: 100vw; max-width: 100vw; border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 90vh; }
+  .dp-hero-img { height: 180px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .dp-content { padding: 16px 18px 28px; }
+}
+.toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  padding: 10px 22px; border-radius: var(--radius-full);
+  background: var(--ink); color: #fff; font-size: 0.82rem; font-weight: 600;
+  z-index: 1000; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* ═══════════════ Mobile Top Bar ═══════════════ */
+.mobile-bar {
+  display: none; align-items: center; justify-content: space-between;
+  padding: 12px 16px; background: oklch(1 0 0 / 0.88); backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200;
+}
+.mobile-bar .mb-logo { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--brand); cursor: pointer; }
+.mobile-bar .mb-logo span { color: var(--ink); }
+.mb-hamburger {
+  width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface-elevated); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; cursor: pointer;
+}
+.mb-hamburger span { display: block; width: 18px; height: 2px; background: var(--ink-secondary); border-radius: 1px; transition: all 0.2s; }
+.mb-hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
+.mb-hamburger.open span:nth-child(2) { opacity: 0; }
+.mb-hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
+
+/* Mobile sidebar overlay */
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: oklch(0 0 0 / 0.35); z-index: 150; }
+.sidebar-overlay.show { display: block; }
+
+/* ═══════════════ Responsive ═══════════════ */
+
+/* -- 1200px: moderate shrink -- */
+@media (max-width: 1200px) {
+  .page { padding: 28px 28px 50px; }
+  .dest-scroll { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .dp-hero { height: 130px; }
+  .trip-cards { grid-template-columns: repeat(2, 1fr); }
+  .community-grid { grid-template-columns: repeat(2, 1fr); }
+  .essentials-grid { grid-template-columns: repeat(3, 1fr); }
+  .home-hero { padding: 44px 0 36px; }
+  .home-hero h1 { font-size: 2.2rem; }
+}
+
+/* -- 900px: tablet landscape -- */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .sidebar-overlay.show { display: block; }
+  .mobile-bar { display: flex; }
+  .page { padding: 20px 18px 40px; }
+
+  .app-layout { display: block; }
+  .home-hero { padding: 36px 0 28px; text-align: left; }
+  .home-hero h1 { font-size: 1.85rem; max-width: 100%; }
+  .home-hero p { max-width: 100%; }
+
+  .trip-cards { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .community-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .dest-scroll { grid-template-columns: 1fr; gap: 16px; }
+  .dp-hero { height: 180px; }
+  .dp-body { padding: 16px; }
+  .compare-layout { grid-template-columns: 1fr; gap: 14px; }
+  .day-grid { grid-template-columns: 1fr; gap: 14px; }
+  .spots-grid { grid-template-columns: 1fr; gap: 14px; }
+  .outfit-cards { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .essentials-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .start-form-wrap { flex-direction: column; }
+  .start-form { max-width: 100%; }
+  .gen-preview { position: static; width: 100%; flex: 0 0 auto; }
+  .budget-strip { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .pack-layout { grid-template-columns: 1fr; }
+  .outfit-top-row { flex-direction: column; gap: 16px; }
+  .weather-badge { flex: 0 0 auto; width: 100%; }
+
+  .sub-tabs { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+  .sub-tabs::-webkit-scrollbar { display: none; }
+  .sub-tab { white-space: nowrap; flex-shrink: 0; }
+
+  .style-bar { flex-wrap: wrap; }
+  .spot-mode-bar { flex-wrap: wrap; }
+
+  /* Mobile sidebar slides in from left */
+  .sidebar {
+    display: flex; position: fixed; top: 0; left: 0; height: 100vh; z-index: 160;
+    transform: translateX(-100%); transition: transform 0.25s ease;
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar.open { transform: translateX(0); }
+}
+
+/* -- 540px: tablet portrait / large phone -- */
+@media (max-width: 540px) {
+  .page { padding: 16px 14px 36px; }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.15rem; }
+
+  .home-hero h1 { font-size: 1.55rem; }
+  .home-hero p { font-size: 0.9rem; }
+  .btn-lg { padding: 12px 24px; font-size: 0.9rem; }
+
+  .trip-cards { grid-template-columns: 1fr; }
+  .community-grid { grid-template-columns: 1fr; }
+  .outfit-cards { grid-template-columns: 1fr; }
+  .essentials-grid { grid-template-columns: 1fr 1fr; }
+  .budget-strip { grid-template-columns: repeat(2, 1fr); }
+  .pack-items { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+
+  .detail-meta { gap: 6px; }
+  .detail-meta span { font-size: 0.75rem; padding: 4px 10px; }
+  .steps-bar { flex-wrap: wrap; gap: 4px; }
+  .step-line { width: 16px; }
+  .step-label { font-size: 0.74rem; }
+
+  .compare-metrics { gap: 6px; }
+  .compare-card .price { font-size: 1.4rem; }
+
+  .chip-row { gap: 5px; }
+  .chip, .style-chip, .spot-mode { font-size: 0.78rem; padding: 6px 12px; }
+  .pref-label { width: 70px; font-size: 0.78rem; }
+  .nl-input { font-size: 0.8rem; }
+  .nl-modify { padding: 10px 12px; gap: 6px; }
+}
+
+/* -- 1400px+: large screens use more columns -- */
+@media (min-width: 1400px) {
+  .trip-cards { grid-template-columns: repeat(4, 1fr); }
+  .community-grid { grid-template-columns: repeat(4, 1fr); }
+  .outfit-cards { grid-template-columns: repeat(4, 1fr); }
+  .essentials-grid { grid-template-columns: repeat(6, 1fr); }
+  .spots-grid { grid-template-columns: repeat(3, 1fr); }
+  .dp-hero { height: 200px; }
+}
+@media (min-width: 1800px) {
+  .spots-grid { grid-template-columns: repeat(4, 1fr); }
+  .trip-cards { grid-template-columns: repeat(5, 1fr); }
+  .community-grid { grid-template-columns: repeat(5, 1fr); }
+  .outfit-cards { grid-template-columns: repeat(5, 1fr); }
+  .dp-hero { height: 240px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Mobile top bar -->
+<div class="mobile-bar">
+  <div class="mb-logo" onclick="nav('home')">旅<span>图</span></div>
+  <div class="mb-hamburger" onclick="toggleMobileMenu()">
+    <span></span><span></span><span></span>
+  </div>
+</div>
+
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" onclick="closeMobileMenu()"></div>
+
+<div class="app-layout">
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo" onclick="nav('home')">旅<span>图</span></div>
+  <nav class="side-nav">
+    <a href="#" class="active" data-page="home" onclick="nav('home')"><span class="nav-icon">🏠</span> 首页</a>
+    <a href="#" data-page="community" onclick="nav('community')"><span class="nav-icon">💬</span> 社区</a>
+  </nav>
+  <div class="side-user">
+    <div class="side-avatar">苏</div>
+    <div class="side-user-info"><strong>苏苏</strong>旅行爱好者</div>
+  </div>
+</aside>
+
+<!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+<main class="main">
+
+<!-- ───────────────── HOME ───────────────── -->
+<div class="page active" id="page-home">
+  <section class="home-hero">
+    <h1>想去旅行，但<span class="highlight">不知道去哪</span>？</h1>
+    <p>旅图 AI 帮你从灵感激发到可执行行程，一站式完成旅行规划</p>
+    <button class="btn btn-primary btn-lg" onclick="nav('start')">✨ 开始你的行程</button>
+  </section>
+
+  <section class="my-trips-section">
+    <div class="section-head"><h2>📌 我的行程</h2><a onclick="showToast('查看全部行程')">全部 →</a></div>
+    <div class="trip-cards">
+      <!-- Existing trip -->
+      <div class="trip-card" style="cursor:pointer" onclick="event.stopPropagation();openTripDetail('dali')">
+        <div class="card-img" style="background-image:linear-gradient(135deg,oklch(0.63 0.17 198),oklch(0.56 0.15 222))">
+          <span class="card-status draft">草稿</span>
+        </div>
+        <div class="card-body"><h4>🌊 大理 · 洱海环线</h4><p>2天1夜 · 3月15-16日</p></div>
+      </div>
+      <!-- Existing trip 2 -->
+      <div class="trip-card" style="cursor:pointer" onclick="event.stopPropagation();openTripDetail('dali')">
+        <div class="card-img" style="background-image:linear-gradient(135deg,oklch(0.62 0.13 42),oklch(0.55 0.15 62))">
+          <span class="card-status confirmed">已确认</span>
+        </div>
+        <div class="card-body"><h4>🏖️ 厦门 · 鼓浪屿</h4><p>3天2夜 · 方案 B · 4月5-7日</p></div>
+      </div>
+      <!-- New trip -->
+      <div class="trip-card-new" onclick="nav('start')">
+        <div class="plus">+</div>
+        <p>规划新行程</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ───────────────── START TRIP ───────────────── -->
+<div class="page" id="page-start">
+  <button class="back-link" onclick="nav('home')">← 返回首页</button>
+  <h2>告诉我们你的旅行偏好</h2>
+  <p class="hint" style="margin-bottom:22px">AI 会根据你的偏好推荐最匹配的目的地</p>
+
+  <div class="steps-bar">
+    <div class="step-item"><div class="step-circle current">1</div><span class="step-label active">偏好输入</span></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-circle">2</div><span class="step-label">智能分析</span></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-circle">3</div><span class="step-label">目的地推荐</span></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-circle">4</div><span class="step-label">生成方案</span></div>
+  </div>
+
+  <div class="start-form-wrap">
+    <form class="start-form form-card" onsubmit="event.preventDefault(); startGenerate()">
+      <div class="form-group"><label>🎯 你想去什么样的地方？</label>
+        <input type="text" placeholder="例如：安静的海边、适合拍照的小城…" value="放松的海边，适合拍照的文艺小镇"></div>
+      <div class="form-row">
+        <div class="form-group"><label>📍 出发地</label><input type="text" placeholder="城市名称" value="北京"></div>
+        <div class="form-group"><label>💰 预算</label><select><option>3000-5000 元</option><option>1000-3000 元</option><option>5000-8000 元</option><option>8000+ 元</option></select></div>
+      </div>
+      <div class="form-group"><label>📅 出行日期</label>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="date" value="2026-03-15" style="flex:1">
+          <span style="color:var(--ink-tertiary);font-size:0.85rem">至</span>
+          <input type="date" value="2026-03-17" style="flex:1">
+        </div>
+      </div>
+      <div class="form-group"><label>🎨 风格偏好</label>
+        <div class="pref-sliders">
+          <div class="pref-row">
+            <span class="pref-label">🌿 自然风光</span>
+            <input type="range" min="0" max="100" value="75">
+            <span class="pref-val">75</span>
+          </div>
+          <div class="pref-row">
+            <span class="pref-label">🍜 美食探索</span>
+            <input type="range" min="0" max="100" value="55">
+            <span class="pref-val">55</span>
+          </div>
+          <div class="pref-row">
+            <span class="pref-label">🏛️ 人文历史</span>
+            <input type="range" min="0" max="100" value="35">
+            <span class="pref-val">35</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group"><label>💬 其他要求</label>
+        <input type="text" placeholder="例如：适合带娃、需要无障碍设施、宠物友好…"></div>
+      <div class="form-group"><label>🏃 节奏偏好</label>
+        <div class="slider-wrap">
+          <input type="range" min="1" max="10" value="4">
+          <div class="slider-labels"><span>慢节奏 · 深度</span><span>紧凑 · 多打卡</span></div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-lg" type="submit" style="width:100%;justify-content:center">🔮 为我推荐目的地</button>
+    </form>
+    <div class="gen-preview">
+      <div class="gen-card" id="genCard">
+        <div class="spinner"></div>
+        <p><strong>正在为你匹配目的地...</strong></p>
+        <div class="gen-steps" id="genSteps">🔍 分析偏好中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────── DESTINATIONS ───────────────── -->
+<div class="page" id="page-destinations">
+  <button class="back-link" onclick="nav('start')">← 返回修改偏好</button>
+  <h2>为你找到 3 个目的地</h2>
+  <p class="hint" style="margin-bottom:20px">基于你的偏好：海边 · 拍照 · 轻松 · 2-3天</p>
+
+  <div class="steps-bar">
+    <div class="step-item"><div class="step-circle done">✓</div><span class="step-label done">偏好输入</span></div>
+    <div class="step-line done"></div>
+    <div class="step-item"><div class="step-circle done">✓</div><span class="step-label done">智能分析</span></div>
+    <div class="step-line done"></div>
+    <div class="step-item"><div class="step-circle current">3</div><span class="step-label active">目的地推荐</span></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-circle">4</div><span class="step-label">生成方案</span></div>
+  </div>
+
+  <div class="dest-scroll">
+    <!-- 大理 preview -->
+    <div class="dest-preview recommended">
+      <div class="dp-hero" style="background-image:linear-gradient(135deg,oklch(0.63 0.17 198),oklch(0.56 0.15 222))">
+        <span class="dp-badge">最佳匹配 · 94%</span>
+      </div>
+      <div class="dp-body">
+        <div class="dp-header">
+          <div><h3>🌊 大理 · 洱海环线</h3><p>云南 · 2天1夜 · 四季宜人</p></div>
+          <div class="dp-price">¥3,200<span>/人</span></div>
+        </div>
+        <div class="dp-tags"><span class="chip">🌿 自然</span><span class="chip">📸 高出片</span><span class="chip">☕ 文艺</span><span class="chip">🐟 美食</span><span class="chip">🚴 骑行</span></div>
+        <p class="dp-reason">💡 洱海沿线有多个绝佳拍照点，骑行节奏轻松，完美匹配你"放松海边 + 拍照出片"的核心诉求。3月气温 15-22°C，适合轻户外穿搭。</p>
+        <div class="dp-sneak">
+          <h4>🗓️ 行程预览</h4>
+          <div class="dp-stops">
+            <div class="dp-stop"><span>D1</span> 古城 → 喜洲古镇 → 双廊 → 鹿卧山日落</div>
+            <div class="dp-stop"><span>D2</span> 龙龛码头日出 → 潘溪村S弯 → 寂照庵 → 返程</div>
+          </div>
+        </div>
+        <div class="dp-sneak">
+          <h4>📸 亮点机位</h4>
+          <div class="dp-highlights"><span>喜洲转角楼</span><span>鹿卧山日落</span><span>龙龛码头日出</span><span>S弯公路</span></div>
+        </div>
+        <div class="dp-actions">
+          <button class="btn btn-primary" onclick="nav('comparison')">📊 查看方案对比</button>
+          <button class="btn btn-outline" onclick="openTripDetail('dali')">✨ 直接生成行程</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 厦门 preview -->
+    <div class="dest-preview">
+      <div class="dp-hero" style="background-image:linear-gradient(135deg,oklch(0.62 0.13 42),oklch(0.55 0.15 62))">
+        <span class="dp-badge">87% 匹配</span>
+      </div>
+      <div class="dp-body">
+        <div class="dp-header">
+          <div><h3>🏖️ 厦门 · 鼓浪屿文艺行</h3><p>福建 · 2-3天 · 四季皆可</p></div>
+          <div class="dp-price">¥2,800<span>/人</span></div>
+        </div>
+        <div class="dp-tags"><span class="chip">📸 高出片</span><span class="chip">🍜 美食</span><span class="chip">🏛️ 文艺</span><span class="chip">🌊 海景</span></div>
+        <p class="dp-reason">💡 鼓浪屿建筑风格独特，随手拍都很出片，且美食密度高。唯一不足是旺季人流较大，建议工作日出行。</p>
+        <div class="dp-sneak">
+          <h4>🗓️ 行程预览</h4>
+          <div class="dp-stops">
+            <div class="dp-stop"><span>D1</span> 鼓浪屿 → 日光岩 → 菽庄花园 → 龙头路美食</div>
+            <div class="dp-stop"><span>D2</span> 南普陀寺 → 厦大 → 沙坡尾 → 环岛路骑行</div>
+          </div>
+        </div>
+        <div class="dp-sneak">
+          <h4>📸 亮点机位</h4>
+          <div class="dp-highlights"><span>日光岩全景</span><span>菽庄花园</span><span>沙坡尾街区</span><span>环岛路海岸</span></div>
+        </div>
+        <div class="dp-actions">
+          <button class="btn btn-primary" onclick="nav('comparison')">📊 查看方案对比</button>
+          <button class="btn btn-outline" onclick="openTripDetail('dali')">✨ 直接生成行程</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 青岛 preview -->
+    <div class="dest-preview">
+      <div class="dp-hero" style="background-image:linear-gradient(135deg,oklch(0.58 0.15 170),oklch(0.50 0.14 195))">
+        <span class="dp-badge">82% 匹配</span>
+      </div>
+      <div class="dp-body">
+        <div class="dp-header">
+          <div><h3>🏝️ 青岛 · 海滨慢时光</h3><p>山东 · 2-3天 · 夏秋最佳</p></div>
+          <div class="dp-price">¥2,500<span>/人</span></div>
+        </div>
+        <div class="dp-tags"><span class="chip">🌊 海景</span><span class="chip">🍺 啤酒文化</span><span class="chip">🏛️ 德式建筑</span><span class="chip">🦐 海鲜</span></div>
+        <p class="dp-reason">💡 青岛海滨线非常适合轻松周末游，德式建筑群很适合拍照。当前季节稍冷，建议备一件薄外套。</p>
+        <div class="dp-sneak">
+          <h4>🗓️ 行程预览</h4>
+          <div class="dp-stops">
+            <div class="dp-stop"><span>D1</span> 栈桥 → 天主教堂 → 八大关 → 啤酒博物馆</div>
+            <div class="dp-stop"><span>D2</span> 崂山 → 仰口沙滩 → 台东夜市</div>
+          </div>
+        </div>
+        <div class="dp-sneak">
+          <h4>📸 亮点机位</h4>
+          <div class="dp-highlights"><span>八大关银杏</span><span>天主教堂</span><span>栈桥海鸥</span><span>崂山日出</span></div>
+        </div>
+        <div class="dp-actions">
+          <button class="btn btn-primary" onclick="nav('comparison')">📊 查看方案对比</button>
+          <button class="btn btn-outline" onclick="openTripDetail('dali')">✨ 直接生成行程</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-secondary" onclick="showToast('已换一批')">🔄 换一批目的地</button></div>
+</div>
+
+<!-- ───────────────── COMPARISON ───────────────── -->
+<div class="page" id="page-comparison">
+  <button class="back-link" onclick="nav('destinations')">← 返回目的地选择</button>
+  <h2>方案对比</h2>
+  <p class="hint" style="margin-bottom:20px">选择一条最适合你的大理旅行路线</p>
+
+  <div class="steps-bar">
+    <div class="step-item"><div class="step-circle done">✓</div><span class="step-label done">偏好输入</span></div>
+    <div class="step-line done"></div>
+    <div class="step-item"><div class="step-circle done">✓</div><span class="step-label done">智能分析</span></div>
+    <div class="step-line done"></div>
+    <div class="step-item"><div class="step-circle done">✓</div><span class="step-label done">目的地推荐</span></div>
+    <div class="step-line done"></div>
+    <div class="step-item"><div class="step-circle current">4</div><span class="step-label active">生成方案</span></div>
+  </div>
+
+  <div class="compare-layout">
+    <div class="compare-card selected" id="planA" onclick="selectPlan('A')">
+      <h2>🌿 轻松出片线</h2><p class="subtitle">慢节奏深度体验</p>
+      <div class="price">¥3,200 <small>/ 人 · 不含大交通</small></div>
+      <div class="compare-metrics">
+        <div class="metric-row"><span class="metric-dot high"></span> 出片指数 · 高</div>
+        <div class="metric-row"><span class="metric-dot high"></span> 轻松程度 · 高</div>
+        <div class="metric-row"><span class="metric-dot mid"></span> 节奏密度 · 中低</div>
+        <div class="metric-row"><span class="metric-dot high"></span> 美食覆盖 · 高</div>
+      </div>
+      <p style="font-size:0.8rem;color:var(--ink-secondary);margin-top:12px;line-height:1.5">每天 3-4 个景点，留足拍照时间。适合想要深度体验的你。</p>
+    </div>
+    <div class="compare-card" id="planB" onclick="selectPlan('B')">
+      <h2>🏃 高效打卡线</h2><p class="subtitle">覆盖更多景点</p>
+      <div class="price">¥2,800 <small>/ 人 · 不含大交通</small></div>
+      <div class="compare-metrics">
+        <div class="metric-row"><span class="metric-dot high"></span> 出片指数 · 高</div>
+        <div class="metric-row"><span class="metric-dot mid"></span> 轻松程度 · 中</div>
+        <div class="metric-row"><span class="metric-dot high"></span> 节奏密度 · 高</div>
+        <div class="metric-row"><span class="metric-dot mid"></span> 美食覆盖 · 中</div>
+      </div>
+      <p style="font-size:0.8rem;color:var(--ink-secondary);margin-top:12px;line-height:1.5">每天 5-6 个景点，经典机位一网打尽。适合想要玩遍精华的你。</p>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px"><button class="btn btn-primary btn-lg" onclick="openTripDetail('dali')">✅ 选择此方案 · 生成行程</button><button class="btn btn-secondary" onclick="showToast('已保留备选')">📌 保留备选</button></div>
+</div>
+
+<!-- ───────────────── TRIP DETAIL / WORKBENCH ───────────────── -->
+<div class="page" id="page-trip-detail">
+  <button class="back-link" onclick="nav('destinations')">← 返回目的地推荐</button>
+
+  <div class="detail-header">
+    <h1>🌊 大理 · 洱海环线</h1>
+    <p class="hint">轻松出片线 · 2天1夜 · ¥3,200 / 人</p>
+    <div class="detail-meta">
+      <span>💰 ¥3,200 / 人</span><span>📅 3月15日—16日</span><span>🌤️ 15°—22°C</span><span>👥 2人出行</span>
+    </div>
+  </div>
+
+  <!-- Sub-tabs -->
+  <nav class="sub-tabs" id="subTabs">
+    <button class="sub-tab active" data-sub="itinerary" onclick="switchSubTab('itinerary')">📋 行程</button>
+    <button class="sub-tab" data-sub="outfit" onclick="switchSubTab('outfit')">👗 穿搭</button>
+    <button class="sub-tab" data-sub="spots" onclick="switchSubTab('spots')">📸 机位</button>
+    <button class="sub-tab" data-sub="packing" onclick="switchSubTab('packing')">🎒 打包</button>
+  </nav>
+
+  <!-- ── Sub: Itinerary ── -->
+  <div class="sub-panel active" id="sub-itinerary">
+    <!-- Natural language modification bar -->
+    <div class="nl-modify">
+      <div class="nl-icon">💬</div>
+      <input type="text" class="nl-input" placeholder="想调整行程？直接告诉我，比如「把第二天下午改轻松一点」「加一个拍照点」…" onkeydown="if(event.key==='Enter'){showToast('AI 正在根据你的要求调整行程...');this.value=''}">
+      <button class="nl-send" onclick="const inp=this.previousElementSibling;if(inp.value.trim()){showToast('AI 正在根据你的要求调整行程...');inp.value=''}">→</button>
+    </div>
+    <div class="day-grid">
+      <div class="day-panel" id="day1">
+        <div class="day-panel-header"><div class="day-num d1">D1</div><div><h4>洱海西线 · 慢慢骑</h4><p>3月15日 周六 · ☀️ 晴朗 22°C</p></div></div>
+        <div class="stop-list" id="stops-day1">
+          <div class="stop-card" draggable="true" data-stop="depart">
+            <span class="stop-handle" title="拖拽排序">⋮⋮</span>
+            <span class="stop-time">09:00</span>
+            <div class="stop-body"><strong>古城出发 · 租电动车</strong><span>古城南门 · ¥80/天</span></div>
+            <div class="stop-actions"><button class="stop-act del" onclick="removeStop(this)" title="删除">×</button></div>
+          </div>
+          <div class="stop-card" draggable="true" data-stop="xizhou">
+            <span class="stop-handle" title="拖拽排序">⋮⋮</span>
+            <span class="stop-time">10:00</span>
+            <div class="stop-body"><strong>喜洲古镇</strong><span>白族民居 · 转角楼 · 喜洲粑粑</span></div>
+            <div class="stop-actions">
+              <button class="stop-act" onclick="event.stopPropagation();openSpotDetail('xizhou-corner')" title="查看机位">📸</button>
+              <button class="stop-act" onclick="event.stopPropagation();openOutfitDetail('d1-morning')" title="查看穿搭">👗</button>
+              <button class="stop-act del" onclick="removeStop(this)" title="删除">×</button>
+            </div>
+          </div>
+          <div class="stop-card" draggable="true" data-stop="lunch">
+            <span class="stop-handle" title="拖拽排序">⋮⋮</span>
+            <span class="stop-time">12:30</span>
+            <div class="stop-body"><strong>翰林餐厅 · 午餐</strong><span>地道白族菜 · ¥60/人</span></div>
+            <div class="stop-actions"><button class="stop-act del" onclick="removeStop(this)" title="删除">×</button></div>
+          </div>
+          <div class="stop-card" draggable="true" data-stop="shuanglang">
+            <span class="stop-handle" title="拖拽排序">⋮⋮</span>
+            <span class="stop-time">14:00</span>
+            <div class="stop-body"><strong>双廊古镇 · 玉几岛</strong><span>洱海最美观景段 · 下午顺光</span></div>
+            <div class="stop-actions">
+              <button class="stop-act" onclick="event.stopPropagation();openSpotDetail('xizhou-corner')" title="查看机位">📸</button>
+              <button class="stop-act" onclick="event.stopPropagation();openOutfitDetail('d1-afternoon')" title="查看穿搭">👗</button>
+              <button class="stop-act del" onclick="removeStop(this)" title="删除">×</button>
+            </div>
+          </div>
+          <div class="stop-card" draggable="true" data-stop="luwoshan">
+            <span class="stop-handle" title="拖拽排序">⋮⋮</span>
+            <span class="stop-time">18:00</span>
+            <div class="stop-body"><strong>鹿卧山 · 日落</strong><span>日落约 18:45</span></div>
+            <div class="stop-actions">
+              <button class="stop-act" onclick="event.stopPropagation();openSpotDetail('luwoshan')" title="查看机位">📸</button>
+              <button class="stop-act del" onclick="removeStop(this)" title="删除">×</button>
+            </div>
+          </div>
+        </div>
+        <button class="add-stop-btn" onclick="addStopCard('stops-day1')"><span class="plus-circle">+</span> 添加行程点</button>
+      </div>
+      <div class="day-panel" id="day2">
+        <div class="day-panel-header"><div class="day-num d2">D2</div><div><h4>日出 · S弯 · 山寺慢行</h4><p>3月16日 周日 · ⛅ 多云 20°C</p></div></div>
+        <div class="stop-list" id="stops-day2">
+          <div class="stop-card" draggable="true" data-stop="longkan">
+            <span class="stop-handle" title="拖拽排序">⋮⋮</span>
+            <span class="stop-time">07:20</span>
+            <div class="stop-body"><strong>龙龛码头 · 日出</strong><span>距离古城最近 · 日出约 7:20</span></div>
+            <div class="stop-actions">
+              <button class="stop-act" onclick="event.stopPropagation();openSpotDetail('longkan')" title="查看机位">📸</button>
+              <button class="stop-act del" onclick="removeStop(this)" title="删除">×</button>
+            </div>
+          </div>
+          <div class="stop-card" draggable="true" data-stop="swan">
+            <span class="stop-handle" title="拖拽排序">⋮⋮</span>
+            <span class="stop-time">10:00</span>
+            <div class="stop-body"><strong>潘溪村 S 弯</strong><span>上午人少光线好</span></div>
+            <div class="stop-actions">
+              <button class="stop-act" onclick="event.stopPropagation();openSpotDetail('swan')" title="查看机位">📸</button>
+              <button class="stop-act" onclick="event.stopPropagation();openOutfitDetail('d2-morning')" title="查看穿搭">👗</button>
+              <button class="stop-act del" onclick="removeStop(this)" title="删除">×</button>
+            </div>
+          </div>
+          <div class="stop-card" draggable="true" data-stop="jizhaoan">
+            <span class="stop-handle" title="拖拽排序">⋮⋮</span>
+            <span class="stop-time">13:00</span>
+            <div class="stop-body"><strong>寂照庵 · 素斋</strong><span>最美尼姑庵 · 多肉花园</span></div>
+            <div class="stop-actions"><button class="stop-act del" onclick="removeStop(this)" title="删除">×</button></div>
+          </div>
+          <div class="stop-card" draggable="true" data-stop="return">
+            <span class="stop-handle" title="拖拽排序">⋮⋮</span>
+            <span class="stop-time">16:00</span>
+            <div class="stop-body"><strong>返程 · 大理站</strong><span>预留 1 小时前往车站</span></div>
+            <div class="stop-actions"><button class="stop-act del" onclick="removeStop(this)" title="删除">×</button></div>
+          </div>
+        </div>
+        <button class="add-stop-btn" onclick="addStopCard('stops-day2')"><span class="plus-circle">+</span> 添加行程点</button>
+      </div>
+    </div>
+    <div class="budget-strip">
+      <div class="item">🏨 住宿<strong>¥400</strong></div><div class="item">🚗 交通<strong>¥300</strong></div><div class="item">🍜 餐饮<strong>¥400</strong></div><div class="item">🎫 门票<strong>¥200</strong></div><div class="item">🎒 其他<strong>¥200</strong></div>
+    </div>
+    <div class="notes-bar"><strong>⚠️ 注意事项</strong>&nbsp;&nbsp;早晚温差大，带薄外套 &nbsp;|&nbsp; 骑行注意防晒 &nbsp;|&nbsp; 周末双廊人流多</div>
+  </div>
+
+  <!-- ── Sub: Outfit ── -->
+  <div class="sub-panel" id="sub-outfit">
+    <div class="outfit-top-row">
+      <div class="outfit-intro"><h2 style="font-size:1.25rem;margin-bottom:2px">👗 穿搭推荐</h2><p class="hint">基于大理天气 · 行程场景 · 出片优先风格</p></div>
+      <div class="weather-badge"><div class="icon">🌤️</div><div><strong>大理 · 3月15-16日</strong>白天 20-22°C · 夜间 8-10°C · 紫外线强</div></div>
+    </div>
+    <div class="style-bar" id="styleBar">
+      <button class="style-chip active">📸 出片优先</button><button class="style-chip">👟 舒适轻便</button><button class="style-chip">✨ 法式简约</button><button class="style-chip">🧥 保暖实用</button>
+    </div>
+    <div class="outfit-day">
+      <h3><span class="day-badge d1">Day 1</span> 洱海骑行 + 双廊下午茶</h3>
+      <div class="outfit-cards">
+        <div class="outfit-card" onclick="openOutfitDetail('d1-morning')"><div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.88 0.06 180),oklch(0.82 0.05 215))"><span class="scene-tag">上午 · 喜洲</span><span class="emoji">🧥👗</span></div><div class="outfit-body"><h5>法式碎花裙 + 针织开衫</h5><p>米白开衫配碎花长裙，喜洲白族民居前法式田园氛围。</p></div></div>
+        <div class="outfit-card" onclick="openOutfitDetail('d1-afternoon')"><div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.85 0.05 45),oklch(0.78 0.06 70))"><span class="scene-tag">下午 · 双廊</span><span class="emoji">👒🕶️</span></div><div class="outfit-body"><h5>白色亚麻套装 + 草帽</h5><p>洱海边白色系最上镜。亚麻透气，草帽防晒同时增加度假感。</p></div></div>
+        <div class="outfit-card" onclick="openOutfitDetail('d1-evening')"><div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.78 0.06 30),oklch(0.70 0.08 55))"><span class="scene-tag">傍晚 · 日落</span><span class="emoji">🧥🧣</span></div><div class="outfit-body"><h5>轻薄风衣 + 围巾</h5><p>日落降温，在亚麻套装外加卡其色风衣，保暖同时适合剪影拍摄。</p></div></div>
+      </div>
+    </div>
+    <div class="outfit-day">
+      <h3><span class="day-badge d2">Day 2</span> 日出拍摄 + S弯街拍 + 山寺漫步</h3>
+      <div class="outfit-cards">
+        <div class="outfit-card" onclick="openOutfitDetail('d2-sunrise')"><div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.72 0.06 25),oklch(0.64 0.08 50))"><span class="scene-tag">清晨 · 日出</span><span class="emoji">🧥🧣</span></div><div class="outfit-body"><h5>薄羽绒 + 围巾 + 长裤</h5><p>码头清晨约 8-10°C，注意保暖。深色系在金色晨光中形成高级对比。</p></div></div>
+        <div class="outfit-card" onclick="openOutfitDetail('d2-morning')"><div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.80 0.07 260),oklch(0.74 0.06 290))"><span class="scene-tag">上午 · S弯</span><span class="emoji">🧶👖</span></div><div class="outfit-body"><h5>条纹针织 + 宽松牛仔裤</h5><p>S 弯偏向日系街拍风格，条纹衫配浅色牛仔裤，清新自然。</p></div></div>
+        <div class="outfit-card" onclick="openOutfitDetail('d2-afternoon')"><div class="outfit-visual" style="background:linear-gradient(135deg,oklch(0.84 0.05 150),oklch(0.78 0.06 175))"><span class="scene-tag">下午 · 寂照庵</span><span class="emoji">🧥👟</span></div><div class="outfit-body"><h5>宽松衬衫 + 阔腿裤</h5><p>棉麻材质贴合山寺清幽氛围，平底鞋方便爬坡，多肉花园里很出片。</p></div></div>
+      </div>
+    </div>
+    <div class="essentials-block"><h3>🎯 必带单品</h3>
+      <div class="essentials-grid" id="essGrid">
+        <div class="ess-item">🧴 防晒霜 SPF50+</div><div class="ess-item">🕶️ 墨镜</div><div class="ess-item">👒 宽檐草帽</div><div class="ess-item">🧥 薄外套 / 开衫</div>
+        <div class="ess-item">👟 舒适小白鞋</div><div class="ess-item">📷 相机 / 手机支架</div><div class="ess-item">👜 帆布包</div><div class="ess-item">💧 便携水杯</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sub: Photo Spots ── -->
+  <div class="sub-panel" id="sub-spots">
+    <div style="margin-bottom:20px"><h2 style="font-size:1.25rem;margin-bottom:2px">📸 机位推荐</h2><p class="hint">大理洱海线 · 4个精选机位 · 含拍摄时间、构图和穿搭建议</p></div>
+    <div class="spot-mode-bar" id="spotModeBar">
+      <button class="spot-mode active">📷 全部</button><button class="spot-mode">✅ 轻松打卡</button><button class="spot-mode">⭐ 高出片</button><button class="spot-mode">🍃 少排队</button>
+    </div>
+    <div class="spots-grid" id="spotsGrid">
+      <div class="spot-card editable-spot" onclick="openSpotDetail('xizhou-corner')">
+        <button class="spot-del" onclick="event.stopPropagation();this.closest('.editable-spot').remove()" title="删除">×</button>
+        <div class="spot-hero" style="background-image:linear-gradient(135deg,oklch(0.56 0.18 28),oklch(0.48 0.16 48))"><span class="spot-time-pill">🌅 17:00—18:30</span><div class="spot-hero-text"><h3>喜洲 · 转角楼</h3><p>白族建筑美学 · 下午顺光</p></div></div>
+        <div class="spot-body">
+          <div class="spot-tip"><h5>📐 构图建议</h5><p>站在转角楼对面马路边，低角度仰拍，将蓝天和飞檐一起收入画面。人物在转角处自然走动抓拍最佳。</p></div>
+          <div class="spot-tip"><h5>👗 穿搭匹配</h5><p>法式碎花裙 + 米白开衫，与青瓦白墙形成冷暖对比。避免全白（与白墙融为一体）。</p></div>
+          <div class="spot-tags"><span class="spot-tag best">⭐ 高出片</span><span class="spot-tag angle">建筑·仰拍</span><span class="spot-tag gear">手机即可</span></div>
+        </div>
+      </div>
+      <div class="spot-card editable-spot" onclick="openSpotDetail('luwoshan')">
+        <button class="spot-del" onclick="event.stopPropagation();this.closest('.editable-spot').remove()" title="删除">×</button>
+        <div class="spot-hero" style="background-image:linear-gradient(135deg,oklch(0.58 0.17 205),oklch(0.48 0.16 225))"><span class="spot-time-pill">🌇 18:00—19:00</span><div class="spot-hero-text"><h3>鹿卧山 · 日落</h3><p>洱海最美日落 · 剪影大片</p></div></div>
+        <div class="spot-body">
+          <div class="spot-tip"><h5>📐 构图建议</h5><p>日落前 20 分钟抵达，以枯树为前景，人物站水边。逆光拍剪影，侧光拍半身人像。长焦压缩景深更好。</p></div>
+          <div class="spot-tip"><h5>⚠️ 注意</h5><p>日落后骤降约 8°C，带外套。周末人多，建议提前 30 分钟占位。</p></div>
+          <div class="spot-tags"><span class="spot-tag best">⭐ 高出片</span><span class="spot-tag angle">逆光·剪影</span><span class="spot-tag gear">建议长焦</span></div>
+        </div>
+      </div>
+      <div class="spot-card editable-spot" onclick="openSpotDetail('longkan')">
+        <button class="spot-del" onclick="event.stopPropagation();this.closest('.editable-spot').remove()" title="删除">×</button>
+        <div class="spot-hero" style="background-image:linear-gradient(135deg,oklch(0.63 0.14 58),oklch(0.54 0.15 78))"><span class="spot-time-pill">🌄 07:10—07:40</span><div class="spot-hero-text"><h3>龙龛码头 · 日出</h3><p>金色晨光 · 水面倒影</p></div></div>
+        <div class="spot-body">
+          <div class="spot-tip"><h5>📐 构图建议</h5><p>以木栈道为引导线，人物站栈道尽头或侧坐边缘。日出金光 + 水面倒影构成完美对称构图，手机即可出片。</p></div>
+          <div class="spot-tip"><h5>👗 穿搭匹配</h5><p>深色系（藏蓝/深灰）在金色晨光中形成高级对比。围巾可作道具增加画面层次。</p></div>
+          <div class="spot-tags"><span class="spot-tag best">⭐ 高出片</span><span class="spot-tag angle">对称·倒影</span><span class="spot-tag gear">手机即可</span></div>
+        </div>
+      </div>
+      <div class="spot-card editable-spot" onclick="openSpotDetail('swan')">
+        <button class="spot-del" onclick="event.stopPropagation();this.closest('.editable-spot').remove()" title="删除">×</button>
+        <div class="spot-hero" style="background-image:linear-gradient(135deg,oklch(0.56 0.16 215),oklch(0.48 0.14 235))"><span class="spot-time-pill">☀️ 10:00—12:00</span><div class="spot-hero-text"><h3>潘溪村 · S 弯</h3><p>网红公路 · 骑行抓拍</p></div></div>
+        <div class="spot-body">
+          <div class="spot-tip"><h5>📐 构图建议</h5><p>站在 S 弯外侧，用公路曲线做引导线。上午阳光侧后方打来，面部光线柔和。可尝试骑行中动态抓拍。</p></div>
+          <div class="spot-tip"><h5>⚠️ 避坑</h5><p>下午排队严重（有时等 30 分钟+），强烈建议上午 10 点前到达，避开周末高峰。</p></div>
+          <div class="spot-tags"><span class="spot-tag best">⭐ 高出片</span><span class="spot-tag angle">公路·引导线</span><span class="spot-tag gear">手机即可</span></div>
+        </div>
+      </div>
+    </div>
+    <button class="add-btn" onclick="addSpot()">添加机位</button>
+  </div>
+
+  <!-- ── Sub: Packing ── -->
+  <div class="sub-panel" id="sub-packing">
+    <div class="pack-layout">
+      <div>
+        <h2 style="font-size:1.25rem;margin-bottom:4px">🎒 打包清单</h2><p class="hint" style="margin-bottom:22px">基于天气和行程自动生成 · 点击标记已打包</p>
+        <div class="pack-category"><h4>👗 衣物</h4><div class="pack-items" id="packClothes">
+          <div class="pack-item packed" onclick="togglePack(event, this)"><span class="pack-check">✓</span><span class="item-name">碎花连衣裙 ×1</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item packed" onclick="togglePack(event, this)"><span class="pack-check">✓</span><span class="item-name">米白针织开衫 ×1</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">白色亚麻套装 ×1</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item packed" onclick="togglePack(event, this)"><span class="pack-check">✓</span><span class="item-name">条纹针织衫 ×1</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">宽松牛仔裤 ×1</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">轻薄风衣 ×1</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item packed" onclick="togglePack(event, this)"><span class="pack-check">✓</span><span class="item-name">舒适小白鞋 ×1</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+        </div><div class="pack-add-row"><input class="pack-input" placeholder="添加衣物..." onkeydown="if(event.key==='Enter')addPackItem('packClothes', this)"><button class="add-btn" style="width:auto;margin:0;padding:7px 12px;flex-shrink:0" onclick="addPackItem('packClothes', this.previousElementSibling)">+</button></div></div>
+        <div class="pack-category"><h4>🧴 护肤 & 防护</h4><div class="pack-items" id="packSkincare">
+          <div class="pack-item packed" onclick="togglePack(event, this)"><span class="pack-check">✓</span><span class="item-name">防晒霜 SPF50+</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">保湿面膜 ×2</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">润唇膏</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">墨镜</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+        </div><div class="pack-add-row"><input class="pack-input" placeholder="添加防护用品..." onkeydown="if(event.key==='Enter')addPackItem('packSkincare', this)"><button class="add-btn" style="width:auto;margin:0;padding:7px 12px;flex-shrink:0" onclick="addPackItem('packSkincare', this.previousElementSibling)">+</button></div></div>
+        <div class="pack-category"><h4>📷 数码 & 其他</h4><div class="pack-items" id="packGear">
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">手机三脚架</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">充电宝 20000mAh</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">相机 + 备用电池</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">宽檐草帽</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">围巾</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+          <div class="pack-item" onclick="togglePack(event, this)"><span class="pack-check"></span><span class="item-name">便携水杯</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button></div>
+        </div><div class="pack-add-row"><input class="pack-input" placeholder="添加物品..." onkeydown="if(event.key==='Enter')addPackItem('packGear', this)"><button class="add-btn" style="width:auto;margin:0;padding:7px 12px;flex-shrink:0" onclick="addPackItem('packGear', this.previousElementSibling)">+</button></div></div>
+      </div>
+      <aside class="pack-sidebar-card"><h4>📦 打包进度</h4><div class="bar"><div class="bar-fill" id="packBar" style="width:24%"></div></div><p><span class="pack-count" id="packedNum">4</span> <small>/ 17 件已打包</small></p></aside>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Detail modal popup (shared by spots & outfit) ══════════ -->
+<div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetailPanel()">
+  <div class="detail-panel" id="detailPanel" onclick="event.stopPropagation()">
+    <button class="dp-close" onclick="closeDetailPanel()">×</button>
+    <div class="dp-hero-img" id="dpHero"></div>
+    <div class="dp-content" id="dpContent"></div>
+  </div>
+</div>
+
+<!-- ───────────────── COMMUNITY ───────────────── -->
+<div class="page" id="page-community">
+  <div class="community-header"><h2>💬 社区</h2><p class="hint">看看大家都在去哪玩、怎么拍</p></div>
+  <div class="community-tags">
+    <span class="chip selected">全部</span><span class="chip">📸 拍照</span><span class="chip">🍜 美食</span><span class="chip">🏔️ 户外</span><span class="chip">🏖️ 海边</span><span class="chip">🏛️ 人文</span><span class="chip">🧘 疗愈</span>
+  </div>
+  <div class="community-grid">
+    <div class="post-card" onclick="openTripDetail('dali')">
+      <div class="post-img" style="background-image:linear-gradient(135deg,oklch(0.65 0.12 22),oklch(0.57 0.15 45))"></div>
+      <div class="post-body"><h4>苏苏的大理周末穿搭全记录</h4><p>洱海环线 · 2天 · 9个机位分享</p></div>
+      <div class="post-author"><span class="pa"></span> 苏苏</div>
+    </div>
+    <div class="post-card" onclick="openTripDetail('dali')">
+      <div class="post-img" style="background-image:linear-gradient(135deg,oklch(0.52 0.13 260),oklch(0.46 0.14 285))"></div>
+      <div class="post-body"><h4>小林的川西秘境日记</h4><p>四姑娘山 · 3天穿越 · 装备攻略</p></div>
+      <div class="post-author"><span class="pa"></span> 小林</div>
+    </div>
+    <div class="post-card">
+      <div class="post-img" style="background-image:linear-gradient(135deg,oklch(0.58 0.15 170),oklch(0.50 0.13 198))"></div>
+      <div class="post-body"><h4>阿毛的厦门逛吃地图</h4><p>鼓浪屿 + 中山路 · 日均¥150吃饱</p></div>
+      <div class="post-author"><span class="pa"></span> 阿毛</div>
+    </div>
+    <div class="post-card">
+      <div class="post-img" style="background-image:linear-gradient(135deg,oklch(0.56 0.14 100),oklch(0.50 0.13 120))"></div>
+      <div class="post-body"><h4>David 的虎跳峡徒步</h4><p>2日穿越 · 海拔 2400m · 详细路书</p></div>
+      <div class="post-author"><span class="pa"></span> David</div>
+    </div>
+    <div class="post-card">
+      <div class="post-img" style="background-image:linear-gradient(135deg,oklch(0.60 0.15 340),oklch(0.52 0.16 5))"></div>
+      <div class="post-body"><h4>周末特种兵 · 重庆篇</h4><p>48h暴走 · 8个出片机位</p></div>
+      <div class="post-author"><span class="pa"></span> Rachel</div>
+    </div>
+    <div class="post-card">
+      <div class="post-img" style="background-image:linear-gradient(135deg,oklch(0.54 0.14 190),oklch(0.47 0.15 215))"></div>
+      <div class="post-body"><h4>青岛老城文艺漫步</h4><p>德式建筑 + 海边咖啡馆合集</p></div>
+      <div class="post-author"><span class="pa"></span> 小晴</div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div><!-- .app-layout -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Global Navigation ── */
+function updateSidebar(page) {
+  document.querySelectorAll('.side-nav a').forEach(a => a.classList.remove('active'));
+  const link = document.querySelector(`.side-nav a[data-page="${page}"]`);
+  if (link) link.classList.add('active');
+}
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-' + page);
+  if (target) target.classList.add('active');
+  updateSidebar(page);
+  closeMobileMenu();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Sub-tabs inside Trip Detail ── */
+function switchSubTab(sub) {
+  document.querySelectorAll('#subTabs .sub-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('active'));
+  const tab = document.querySelector(`#subTabs .sub-tab[data-sub="${sub}"]`);
+  const panel = document.getElementById('sub-' + sub);
+  if (tab) tab.classList.add('active');
+  if (panel) panel.classList.add('active');
+}
+
+/* ── Open trip detail from My Trips or Community ── */
+function openTripDetail(tripId) {
+  // Use the same nav flow as other pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-trip-detail').classList.add('active');
+  document.querySelectorAll('.side-nav a').forEach(a => a.classList.remove('active'));
+  switchSubTab('itinerary');
+  closeMobileMenu();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Comparison selection ── */
+function selectPlan(plan) {
+  document.getElementById('planA').classList.toggle('selected', plan === 'A');
+  document.getElementById('planB').classList.toggle('selected', plan === 'B');
+}
+
+/* ── Start trip → AI generation → navigate ── */
+function startGenerate() {
+  const form = document.querySelector('.start-form');
+  const card = document.getElementById('genCard');
+  const steps = document.getElementById('genSteps');
+  form.style.display = 'none';
+  card.classList.add('show');
+  const msgs = ['🔍 分析偏好中...', '🌤️ 匹配季节与天气...', '📍 检索目的地热点数据...', '✨ 生成推荐结果...'];
+  let i = 0;
+  const iv = setInterval(() => {
+    i++;
+    if (i < msgs.length) steps.textContent = msgs[i];
+    if (i >= msgs.length) { clearInterval(iv); setTimeout(() => { card.classList.remove('show'); form.style.display = ''; nav('destinations'); }, 500); }
+  }, 800);
+}
+
+/* ── Preference sliders → update number ── */
+document.querySelectorAll('.pref-row input[type=range]').forEach(slider => {
+  slider.addEventListener('input', function() {
+    this.nextElementSibling.textContent = this.value;
+  });
+});
+
+/* ── Style bar chip toggles ── */
+document.getElementById('styleBar').addEventListener('click', e => {
+  if (e.target.classList.contains('style-chip')) {
+    document.querySelectorAll('#styleBar .style-chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+  }
+});
+document.getElementById('spotModeBar').addEventListener('click', e => {
+  if (e.target.classList.contains('spot-mode')) {
+    document.querySelectorAll('#spotModeBar .spot-mode').forEach(m => m.classList.remove('active'));
+    e.target.classList.add('active');
+  }
+});
+document.getElementById('essGrid').addEventListener('click', e => {
+  const item = e.target.closest('.ess-item');
+  if (item) item.classList.toggle('checked');
+});
+
+/* ── Packing toggle ── */
+function togglePack(event, el) {
+  if (event) event.stopPropagation();
+  el.classList.toggle('packed');
+  el.querySelector('.pack-check').textContent = el.classList.contains('packed') ? '✓' : '';
+  updatePackProgress();
+}
+function removePackItem(btn) {
+  btn.closest('.pack-item').remove();
+  updatePackProgress();
+}
+function addPackItem(containerId, input) {
+  const name = input.value.trim();
+  if (!name) return;
+  const container = document.getElementById(containerId);
+  const div = document.createElement('div');
+  div.className = 'pack-item';
+  div.setAttribute('onclick', 'togglePack(event, this)');
+  div.innerHTML = '<span class="pack-check"></span><span class="item-name">' + name + '</span><button class="del-btn" onclick="event.stopPropagation();removePackItem(this)" title="删除">×</button>';
+  container.appendChild(div);
+  input.value = '';
+  updatePackProgress();
+}
+function updatePackProgress() {
+  const total = document.querySelectorAll('.pack-item').length;
+  const packed = document.querySelectorAll('.pack-item.packed').length;
+  document.getElementById('packedNum').textContent = packed;
+  document.getElementById('packBar').style.width = ((packed / Math.max(total, 1)) * 100) + '%';
+}
+
+/* ── Itinerary: drag & drop stop cards ── */
+let dragSrcCard = null;
+
+function initDragDrop() {
+  document.querySelectorAll('.stop-card').forEach(card => {
+    card.addEventListener('dragstart', function(e) {
+      dragSrcCard = this;
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', function(e) {
+      this.classList.remove('dragging');
+      document.querySelectorAll('.stop-card').forEach(c => c.classList.remove('drag-over'));
+      dragSrcCard = null;
+    });
+    card.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (this !== dragSrcCard) this.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', function(e) {
+      this.classList.remove('drag-over');
+    });
+    card.addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.classList.remove('drag-over');
+      if (dragSrcCard && dragSrcCard !== this) {
+        // Swap times
+        const srcTime = dragSrcCard.querySelector('.stop-time').textContent;
+        const dstTime = this.querySelector('.stop-time').textContent;
+        dragSrcCard.querySelector('.stop-time').textContent = dstTime;
+        this.querySelector('.stop-time').textContent = srcTime;
+        // Swap DOM positions
+        const parent = this.parentNode;
+        const nextSibling = this.nextSibling === dragSrcCard ? this : this.nextSibling;
+        parent.insertBefore(dragSrcCard, nextSibling);
+      }
+    });
+  });
+}
+
+/* Remove a stop card */
+function removeStop(btn) {
+  btn.closest('.stop-card').remove();
+}
+
+/* Add a new stop card */
+function addStopCard(listId) {
+  const list = document.getElementById(listId);
+  const card = document.createElement('div');
+  card.className = 'stop-card';
+  card.draggable = true;
+  card.innerHTML = '<span class="stop-handle" title="拖拽排序">⋮⋮</span>' +
+    '<span class="stop-time" contenteditable="true">12:00</span>' +
+    '<div class="stop-body"><strong contenteditable="true">新行程点</strong><span contenteditable="true">点击编辑描述</span></div>' +
+    '<div class="stop-actions">' +
+      '<button class="stop-act" onclick="event.stopPropagation();showToast(\'新添加的行程点暂无推荐内容\')" title="查看机位">📸</button>' +
+      '<button class="stop-act" onclick="event.stopPropagation();showToast(\'新添加的行程点暂无推荐内容\')" title="查看穿搭">👗</button>' +
+      '<button class="stop-act del" onclick="removeStop(this)" title="删除">×</button>' +
+    '</div>';
+  list.appendChild(card);
+  card.querySelector('.stop-time').addEventListener('blur', function() {
+    // Keep time format validation could go here
+  });
+  initDragDrop(); // re-bind drag events for new card
+}
+
+// Initialize drag on page load
+document.addEventListener('DOMContentLoaded', function() {
+  initDragDrop();
+});
+// Also init immediately (in case DOMContentLoaded already fired)
+initDragDrop();
+
+/* ── Detail panel: spot data ── */
+const spotData = {
+  'xizhou-corner': {
+    name:'喜洲 · 转角楼', hero:'linear-gradient(135deg,oklch(0.56 0.18 28),oklch(0.48 0.16 48))',
+    time:'🌅 最佳时段 17:00—18:30', rate:'94%', difficulty:'★★☆☆☆', difficultyLabel:'简单',
+    location:'云南省大理市喜洲古镇 · 转角楼', composition:'站在转角楼对面马路边，低角度仰拍，将蓝天和飞檐一起收入画面。人物在转角处自然走动，抓拍效果最佳。下午顺光，光线柔和。',
+    outfit:'法式碎花裙 + 米白开衫，与白族青瓦白墙形成冷暖对比。避免穿全白（与白墙融为一体）。',
+    outfitId:'d1-morning',
+    tags:[{c:'best',t:'⭐ 高出片'},{c:'angle',t:'建筑·仰拍'},{c:'gear',t:'手机即可'}]
+  },
+  'luwoshan': {
+    name:'鹿卧山 · 日落', hero:'linear-gradient(135deg,oklch(0.58 0.17 205),oklch(0.48 0.16 225))',
+    time:'🌇 最佳时段 18:00—19:00', rate:'96%', difficulty:'★★★☆☆', difficultyLabel:'中等',
+    location:'云南省大理市环海东路 · 鹿卧山遗址', composition:'日落前 20 分钟抵达，以枯树为前景，人物站在水边。逆光拍摄剪影，侧光拍半身人像。建议使用长焦镜头压缩景深，能拍到洱海和远山层叠效果。',
+    outfit:'轻薄风衣 + 围巾，日落后温度骤降约 8°C，务必带外套。深色系在暖色日落中形成高级对比。',
+    outfitId:'d1-evening',
+    tags:[{c:'best',t:'⭐ 高出片'},{c:'angle',t:'逆光·剪影'},{c:'gear',t:'建议长焦'}],
+    warning:'日落后温度骤降约 8°C，带外套。周末人多，建议提前 30 分钟占位。'
+  },
+  'longkan': {
+    name:'龙龛码头 · 日出', hero:'linear-gradient(135deg,oklch(0.63 0.14 58),oklch(0.54 0.15 78))',
+    time:'🌄 最佳时段 07:10—07:40', rate:'92%', difficulty:'★★☆☆☆', difficultyLabel:'简单',
+    location:'云南省大理市龙龛码头 · 距离古城 3km', composition:'以木栈道为引导线，人物站在栈道尽头或侧坐栈道边缘。日出金色光线与水面倒影构成完美对称构图。手机即可出片，无需专业设备。',
+    outfit:'薄羽绒 + 围巾 + 长裤，码头清晨约 8-10°C，注意保暖。深色系（藏蓝/深灰）在金色晨光中形成高级对比。围巾也是很好的拍摄道具。',
+    outfitId:'d2-sunrise',
+    tags:[{c:'best',t:'⭐ 高出片'},{c:'angle',t:'对称·倒影'},{c:'gear',t:'手机即可'}]
+  },
+  'swan': {
+    name:'潘溪村 · S 弯', hero:'linear-gradient(135deg,oklch(0.56 0.16 215),oklch(0.48 0.14 235))',
+    time:'☀️ 最佳时段 10:00—12:00', rate:'90%', difficulty:'★★☆☆☆', difficultyLabel:'简单',
+    location:'云南省大理市潘溪村 · 洱海生态廊道 S 弯段', composition:'站在 S 弯外侧，用公路曲线做引导线。上午阳光从侧后方打过来，面部光线柔和。可尝试骑行中的动态抓拍，或公路中央的远景人像。',
+    outfit:'条纹针织衫 + 宽松牛仔裤，偏向日系街拍风格。上午 10 点前到达人少，光线最好。',
+    outfitId:'d2-morning',
+    tags:[{c:'best',t:'⭐ 高出片'},{c:'angle',t:'公路·引导线'},{c:'gear',t:'手机即可'}],
+    warning:'下午排队严重（有时等 30 分钟+），强烈建议上午 10 点前到达。'
+  }
+};
+
+/* ── Detail panel: outfit data ── */
+const outfitData = {
+  'd1-morning': {
+    name:'法式碎花裙 + 针织开衫', hero:'linear-gradient(135deg,oklch(0.88 0.06 180),oklch(0.82 0.05 215))',
+    scene:'喜洲古镇 · 上午', weather:'☀️ 晴朗 20°C',
+    items:['米白针织开衫','碎花连衣裙','帆布小白鞋','宽檐草帽（可选）'],
+    reason:'米白开衫搭配碎花长裙，在白族青瓦白墙前营造法式田园氛围。骑行时可扎起裙摆，白色系在砖红色建筑前形成温柔对比。',
+    spotId:'xizhou-corner'
+  },
+  'd1-afternoon': {
+    name:'白色亚麻套装 + 草帽', hero:'linear-gradient(135deg,oklch(0.85 0.05 45),oklch(0.78 0.06 70))',
+    scene:'双廊古镇 · 下午', weather:'☀️ 晴朗 22°C',
+    items:['白色亚麻上衣','亚麻阔腿裤','宽檐草帽','墨镜','帆布包'],
+    reason:'洱海边白色系最上镜。亚麻材质透气舒适，下午阳光充足时是最佳拍摄时间。草帽防晒同时增添度假感，搭配墨镜轻松出片。',
+    spotId:'xizhou-corner'
+  },
+  'd1-evening': {
+    name:'轻薄风衣 + 围巾', hero:'linear-gradient(135deg,oklch(0.78 0.06 30),oklch(0.70 0.08 55))',
+    scene:'鹿卧山 · 傍晚', weather:'🌅 日落 18:45 · 温度下降',
+    items:['卡其色轻薄风衣','围巾','白色亚麻套装（内搭）'],
+    reason:'日落时分温度开始下降（约 15°C），在亚麻套装外加一件卡其色风衣，保暖同时适合剪影拍摄。围巾飘动可增加画面动感。',
+    spotId:'luwoshan'
+  },
+  'd2-sunrise': {
+    name:'薄羽绒 + 围巾 + 长裤', hero:'linear-gradient(135deg,oklch(0.72 0.06 25),oklch(0.64 0.08 50))',
+    scene:'龙龛码头 · 清晨', weather:'🌄 日出 7:20 · 8-10°C',
+    items:['轻薄羽绒服','保暖围巾','深色长裤','手套（可选）'],
+    reason:'码头清晨约 8-10°C 且有湖风，务必保暖。深色系在金色晨光中形成高级对比。围巾既保暖又可作拍摄道具增加层次感。',
+    spotId:'longkan'
+  },
+  'd2-morning': {
+    name:'条纹针织衫 + 宽松牛仔裤', hero:'linear-gradient(135deg,oklch(0.80 0.07 260),oklch(0.74 0.06 290))',
+    scene:'潘溪村 S 弯 · 上午', weather:'⛅ 多云 18°C',
+    items:['细条纹针织衫','浅色宽松牛仔裤','帆布小白鞋'],
+    reason:'S 弯偏向日系街拍风格，条纹衫搭配浅色牛仔裤清新自然。上午 10 点人少光线好，是拍摄的最佳窗口。',
+    spotId:'swan'
+  },
+  'd2-afternoon': {
+    name:'宽松衬衫 + 阔腿裤', hero:'linear-gradient(135deg,oklch(0.84 0.05 150),oklch(0.78 0.06 175))',
+    scene:'寂照庵 · 下午', weather:'⛅ 多云 20°C',
+    items:['棉麻宽松衬衫','阔腿裤','平底鞋'],
+    reason:'山寺环境清幽，棉麻材质贴合氛围。平底鞋方便爬坡，浅色系在多肉花园里很出片。整体偏禅意自然风。',
+    spotId:null
+  }
+};
+
+/* ── Open detail panel ── */
+function openSpotDetail(id) {
+  const d = spotData[id]; if (!d) return;
+  const panel = document.getElementById('detailPanel');
+  const hero = document.getElementById('dpHero');
+  const content = document.getElementById('dpContent');
+  hero.style.backgroundImage = d.hero;
+  let tagsHtml = d.tags.map(t => `<span class="spot-tag ${t.c}">${t.t}</span>`).join('');
+  let warningHtml = d.warning ? `<div class="dp-section"><h4>⚠️ 注意事项</h4><p>${d.warning}</p></div>` : '';
+  content.innerHTML = `
+    <h2>${d.name}</h2><p class="dp-subtitle">${d.time}</p>
+    <div class="dp-metrics">
+      <div class="dp-metric"><div class="val">${d.rate}</div><div class="lbl">出片率</div></div>
+      <div class="dp-metric stars"><div class="val">${d.difficulty}</div><div class="lbl">拍摄难度 · ${d.difficultyLabel}</div></div>
+    </div>
+    <div class="dp-location"><span class="pin">📍</span> ${d.location}</div>
+    <div class="dp-section"><h4>📐 构图指南</h4><p>${d.composition}</p></div>
+    <div class="dp-section"><h4>👗 穿搭建议</h4><p>${d.outfit}</p></div>
+    ${d.outfitId ? `<div class="dp-link-card" onclick="closeDetailPanel();switchSubTab('outfit');setTimeout(()=>openOutfitDetail('${d.outfitId}'),400)"><span class="link-label">👗 查看完整穿搭方案</span><span class="link-arrow">→</span></div>` : ''}
+    ${warningHtml}
+    <div class="dp-tags-row">${tagsHtml}</div>`;
+  document.getElementById('detailOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function openOutfitDetail(id) {
+  const d = outfitData[id]; if (!d) return;
+  const panel = document.getElementById('detailPanel');
+  const hero = document.getElementById('dpHero');
+  const content = document.getElementById('dpContent');
+  hero.style.backgroundImage = d.hero;
+  let itemsHtml = d.items.map(i => `<div class="dp-item-row">· ${i}</div>`).join('');
+  content.innerHTML = `
+    <h2>${d.name}</h2><p class="dp-subtitle">🎬 ${d.scene} · ${d.weather}</p>
+    <div class="dp-section"><h4>👗 单品清单</h4><div class="dp-items-list">${itemsHtml}</div></div>
+    <div class="dp-section"><h4>💡 穿搭理由</h4><p>${d.reason}</p></div>
+    ${d.spotId ? `<div class="dp-link-card" onclick="closeDetailPanel();switchSubTab('spots');setTimeout(()=>openSpotDetail('${d.spotId}'),400)"><span class="link-label">📸 查看匹配机位</span><span class="link-arrow">→</span></div>` : ''}`;
+  document.getElementById('detailOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetailPanel() {
+  document.getElementById('detailOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+/* ── Add photo spot ── */
+function addSpot() {
+  const grid = document.getElementById('spotsGrid');
+  const card = document.createElement('div');
+  card.className = 'spot-card editable-spot';
+  card.innerHTML = '<button class="spot-del" onclick="this.closest(\'.editable-spot\').remove()" title="删除">×</button><div class="spot-hero" style="background-image:linear-gradient(135deg,var(--brand-muted),var(--sky-muted))"><span class="spot-time-pill" contenteditable="true">🕐 时间</span><div class="spot-hero-text"><h3 contenteditable="true">新机位</h3><p contenteditable="true">地点描述</p></div></div><div class="spot-body"><div class="spot-tip"><h5>📐 构图建议</h5><p contenteditable="true">在此输入构图建议...</p></div><div class="spot-tags"><span class="spot-tag best">⭐ 新机位</span></div></div>';
+  grid.appendChild(card);
+}
+
+/* legacy support for old onclick= syntax */
+document.querySelectorAll('.pack-item').forEach(item => {
+  if (!item.hasAttribute('onclick')) {
+    item.addEventListener('click', function(ev) { togglePack(ev, this); });
+  }
+});
+
+/* ── Mobile menu ── */
+function toggleMobileMenu() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.sidebar-overlay');
+  const hamburger = document.querySelector('.mb-hamburger');
+  const isOpen = sidebar.classList.contains('open');
+  if (isOpen) { closeMobileMenu(); }
+  else { sidebar.classList.add('open'); overlay.classList.add('show'); hamburger.classList.add('open'); }
+}
+function closeMobileMenu() {
+  const sb = document.querySelector('.sidebar');
+  const ov = document.querySelector('.sidebar-overlay');
+  const hb = document.querySelector('.mb-hamburger');
+  if (sb) sb.classList.remove('open');
+  if (ov) ov.classList.remove('show');
+  if (hb) hb.classList.remove('open');
+}
+
+/* ── Direct URL access ── */
+(function() {
+  const hash = window.location.hash.slice(1);
+  if (hash === 'trip-detail') openTripDetail('dali');
+})();
+
+/* ── Toast ── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 2000);
+}
+</script>
+
+</body>
+</html>
