@@ -45,3 +45,13 @@ Thumbs.db
 
 # Trae specs (local only)
 .trae/
+
+# Non-project files
+.agents/
+prototypes/
+prototype-a/
+prototype-b/
+项目所需Skills/
+skills-lock.json
+*.docx
+旅图-*.md
