@@ -8,12 +8,13 @@ WORKDIR /app
 # Copy package manifests first to leverage Docker layer caching
 COPY package.json package-lock.json ./
 
-RUN npm install --include=dev
+RUN npm install
 
 # Copy the rest of the source and build
 COPY . .
 
-RUN npm run build
+# Use npx to ensure local binaries are found
+RUN npx tsc -b && npx vite build
 
 # ---------- Stage 2: runtime ----------
 FROM nginx:1.27-alpine AS runtime
