@@ -23,6 +23,15 @@ backend/.env.*
 .coverage
 htmlcov/
 
+# Python build artifacts
+*.egg-info/
+dist/
+build/
+
+# Test reports
+playwright-report/
+test-results/
+
 # Node
 node_modules/
 frontend/node_modules/
