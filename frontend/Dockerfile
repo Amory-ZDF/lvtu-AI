@@ -6,9 +6,9 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 # Copy package manifests first to leverage Docker layer caching
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 
-RUN npm install
+RUN npm ci
 
 # Copy the rest of the source and build
 COPY . .
