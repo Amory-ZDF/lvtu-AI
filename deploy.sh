@@ -5,9 +5,9 @@ set -e
 # 旅图 (Lv) - 一键部署脚本
 # ============================================
 
-DOMAIN="lv.zdfamory.com"
-API_DOMAIN="api.lv.zdfamory.com"
-EMAIL=""  # Let's Encrypt 通知邮箱，请填写
+DOMAIN="${DOMAIN:-lv.zdfamory.com}"
+API_DOMAIN="${API_DOMAIN:-api.lv.zdfamory.com}"
+EMAIL="${EMAIL:-}"  # Let's Encrypt 通知邮箱，可选
 
 echo "========================================="
 echo "  旅图 (Lv) 部署脚本"
