@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.responses import success_response
 from app.core.config import Settings, get_settings
+from app.db.redis import get_redis_client
 from app.db.session import get_db_session
 from app.schemas.common import ApiResponse
 from app.schemas.health import HealthPayload, ReadinessDetails
@@ -32,17 +33,27 @@ def readiness(
     try:
         db.execute(text("SELECT 1"))
         database_status = "ok"
-        status = "ok"
     except SQLAlchemyError:
         database_status = "unavailable"
-        status = "degraded"
+
+    redis_status = "ok"
+    redis_client = get_redis_client()
+    if redis_client is None:
+        redis_status = "degraded"
+    else:
+        try:
+            redis_client.ping()
+        except Exception:
+            redis_status = "degraded"
+
+    status = "ok" if (database_status == "ok" and redis_status == "ok") else "degraded"
 
     return success_response(
         HealthPayload(
         status=status,
         service=settings.app_name,
         environment=settings.app_env,
-        details=ReadinessDetails(database=database_status),
+        details=ReadinessDetails(database=database_status, redis=redis_status),
         ),
         request,
     )

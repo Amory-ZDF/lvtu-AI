@@ -40,15 +40,12 @@ services:
       dockerfile: Dockerfile
     container_name: lv-backend
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     env_file:
       - .env.production
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres:
         condition: service_healthy

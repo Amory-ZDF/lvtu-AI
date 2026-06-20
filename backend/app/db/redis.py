@@ -76,7 +76,7 @@ def get_redis() -> Any:
             from app.core.config import get_settings
 
             settings = get_settings()
-            redis_url = getattr(settings, "redis_url", None)
+            redis_url = getattr(settings, "effective_redis_url", None)
             if redis_url:
                 _redis_client = _redis.from_url(redis_url, decode_responses=True)
                 logger.info("Redis client connected: %s", redis_url)
@@ -89,6 +89,14 @@ def get_redis() -> Any:
         _inmemory_backend = _InMemoryBackend()
         logger.info("Redis unavailable, using in-memory cache backend")
     return None
+
+
+def get_redis_client() -> Any:
+    """返回 Redis 客户端或 None（用于健康检查等场景）。
+
+    与 get_redis 相同语义：Redis 可用且配置了连接信息时返回客户端，否则返回 None。
+    """
+    return get_redis()
 
 
 def _get_backend() -> _InMemoryBackend:

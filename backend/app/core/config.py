@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     db_pool_timeout: int = Field(default=30, alias="DB_POOL_TIMEOUT")
     db_pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
 
+    redis_host: str = Field(default="localhost", alias="REDIS_HOST")
+    redis_port: int = Field(default=6379, alias="REDIS_PORT")
+    redis_password: str | None = Field(default=None, alias="REDIS_PASSWORD")
+    redis_db: int = Field(default=0, alias="REDIS_DB")
     redis_url: str | None = Field(default=None, alias="REDIS_URL")
 
     ai_provider: str = Field(default="mock", alias="AI_PROVIDER")
@@ -96,6 +100,15 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def effective_redis_url(self) -> str:
+        """Build Redis URL from components if REDIS_URL not set."""
+        if self.redis_url:
+            return self.redis_url
+        auth = f":{self.redis_password}@" if self.redis_password else ""
+        return f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
     @computed_field
     @property

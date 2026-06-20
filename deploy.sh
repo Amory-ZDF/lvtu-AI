@@ -37,7 +37,7 @@ if [ ! -f .env.production ]; then
 fi
 
 # 检查关键配置
-if grep -q "change_me_in_production" .env.production; then
+if grep -qE "change_me|change-me-in-production" .env.production; then
     echo "警告: .env.production 中仍有默认密码，建议修改！"
     read -p "继续部署？(y/N) " -n 1 -r
     echo
