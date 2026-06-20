@@ -6,17 +6,21 @@
 from app.integrations.rag.importer import KnowledgeImporter
 from app.integrations.rag.retriever import RagRetriever
 from app.integrations.rag.store import (
+    DbBackedVectorStore,
     InMemoryVectorStore,
     PgVectorStore,
     VectorStore,
+    build_vector_store_from_db,
     get_vector_store,
 )
 
 __all__ = [
+    "DbBackedVectorStore",
     "InMemoryVectorStore",
     "KnowledgeImporter",
     "PgVectorStore",
     "RagRetriever",
     "VectorStore",
+    "build_vector_store_from_db",
     "get_vector_store",
 ]

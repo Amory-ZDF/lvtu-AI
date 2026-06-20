@@ -6,6 +6,7 @@ from app.api.v1.core_business import router as core_business_router
 from app.api.v1.health import router as health_router
 from app.api.v1.interactions import router as interactions_router
 from app.api.v1.jobs import router as jobs_router
+from app.api.v1.knowledge import router as knowledge_router
 from app.api.v1.notifications import router as notifications_router
 from app.api.v1.outfits import router as outfits_router
 from app.api.v1.planning import router as planning_router
@@ -20,6 +21,7 @@ api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(core_business_router)
 api_router.include_router(planning_router, prefix="/planning", tags=["planning"])
 api_router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
+api_router.include_router(knowledge_router, prefix="/knowledge", tags=["knowledge"])
 api_router.include_router(outfits_router, tags=["outfits"])
 api_router.include_router(spots_router, tags=["spots"])
 api_router.include_router(adjustments_router, tags=["adjustments"])

@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     ai_cache_enabled: bool = Field(default=True, alias="AI_CACHE_ENABLED")
     ai_cache_ttl: int = Field(default=3600, alias="AI_CACHE_TTL")
 
+    amap_api_key: str | None = Field(default=None, alias="AMAP_API_KEY")
+    amap_base_url: str = Field(default="https://restapi.amap.com/v3", alias="AMAP_BASE_URL")
+
     jwt_secret_key: str = Field(default="change-me-in-production", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_access_token_expire_minutes: int = Field(

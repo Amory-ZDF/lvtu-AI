@@ -179,3 +179,118 @@ def get_vector_store(settings: object | None = None) -> VectorStore:
         "pgvector not fully configured, falling back to InMemoryVectorStore",
     )
     return InMemoryVectorStore()
+
+
+class DbBackedVectorStore(InMemoryVectorStore):
+    """从数据库知识库表加载数据的向量存储。
+
+    初始化时从 destinations / photo_spots / outfits 表读取全部记录，
+    转换为文档后交给 InMemoryVectorStore 的 TF-IDF 索引。
+    适合知识库规模不大（< 10万条）的场景。
+    """
+
+    def __init__(self, session: object | None = None) -> None:
+        super().__init__()
+        if session is not None:
+            self.load_from_db(session)
+
+    def load_from_db(self, session: object) -> None:
+        """从数据库加载知识库数据并构建索引。"""
+        from app.models.destination import Destination
+        from app.models.outfit import Outfit
+        from app.models.photo_spot import PhotoSpot
+
+        documents: list[dict] = []
+
+        # 目的地
+        for dest in session.query(Destination).all():
+            content_parts = [
+                f"目的地：{dest.name}",
+                f"国家/地区：{dest.country_or_region}",
+            ]
+            if dest.description:
+                content_parts.append(f"描述：{dest.description}")
+            if dest.best_season:
+                content_parts.append(f"最佳季节：{dest.best_season}")
+            if dest.budget_range:
+                content_parts.append(f"预算：{dest.budget_range}")
+            if dest.vibe_tags:
+                content_parts.append(f"氛围标签：{', '.join(dest.vibe_tags)}")
+            if dest.highlights:
+                content_parts.append(f"亮点：{', '.join(dest.highlights)}")
+            if dest.reasons:
+                content_parts.append(f"推荐理由：{'; '.join(dest.reasons)}")
+            documents.append({
+                "content": "\n".join(content_parts),
+                "source": "destinations",
+                "metadata": {"id": str(dest.id), "name": dest.name},
+            })
+
+        # 机位
+        for spot in session.query(PhotoSpot).all():
+            content_parts = [f"机位：{spot.name}"]
+            if spot.destination_name:
+                content_parts.append(f"目的地：{spot.destination_name}")
+            if spot.location:
+                content_parts.append(f"位置：{spot.location}")
+            if spot.description:
+                content_parts.append(f"描述：{spot.description}")
+            if spot.composition:
+                content_parts.append(f"构图：{spot.composition}")
+            if spot.best_time:
+                content_parts.append(f"最佳时间：{spot.best_time}")
+            if spot.tips:
+                content_parts.append(f"拍摄技巧：{spot.tips}")
+            documents.append({
+                "content": "\n".join(content_parts),
+                "source": "spots",
+                "metadata": {"id": str(spot.id), "name": spot.name},
+            })
+
+        # 穿搭
+        for outfit in session.query(Outfit).all():
+            content_parts: list[str] = []
+            if outfit.destination_name:
+                content_parts.append(f"目的地：{outfit.destination_name}")
+            if outfit.season:
+                content_parts.append(f"季节：{outfit.season}")
+            if outfit.scene:
+                content_parts.append(f"场景：{outfit.scene}")
+            if outfit.style:
+                content_parts.append(f"风格：{outfit.style}")
+            if outfit.items:
+                item_names = [
+                    i.get("name", "") if isinstance(i, dict) else str(i)
+                    for i in outfit.items
+                ]
+                content_parts.append(f"单品：{', '.join(item_names)}")
+            if outfit.tips:
+                content_parts.append(f"穿搭贴士：{outfit.tips}")
+            documents.append({
+                "content": "\n".join(content_parts),
+                "source": "outfits",
+                "metadata": {"id": str(outfit.id)},
+            })
+
+        self.add_documents(documents)
+        logger.info(
+            "DbBackedVectorStore loaded %d documents from database "
+            "(destinations + photo_spots + outfits)",
+            len(documents),
+        )
+
+
+def build_vector_store_from_db(session: object) -> DbBackedVectorStore:
+    """从数据库构建向量存储（供 Agent / RAG retriever 使用）。
+
+    用法：
+        from app.db.session import SessionLocal
+        from app.integrations.rag.store import build_vector_store_from_db
+        from app.integrations.rag.retriever import RagRetriever
+
+        session = SessionLocal()
+        store = build_vector_store_from_db(session)
+        retriever = RagRetriever(store)
+        results = retriever.retrieve("京都红叶摄影")
+    """
+    return DbBackedVectorStore(session=session)
