@@ -6,6 +6,7 @@ __pycache__
 .gitignore
 tests
 *.md
+!README.md
 .env
 .env.*
 !.env.example
