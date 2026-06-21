@@ -64,3 +64,15 @@ prototype-b/
 skills-lock.json
 *.docx
 旅图-*.md
+
+# LangGraph Agent（本地开发，不推送）
+backend/app/integrations/agent/langgraph_agent.py
+backend/app/integrations/agent/prompts.py
+backend/app/integrations/agent/router.py
+backend/app/integrations/agent/schemas.py
+backend/app/integrations/agent/state.py
+backend/app/integrations/agent/tools.py
+backend/app/integrations/agent/PLUGGABLE_GUIDE.md
+
+# 项目上下文文档（含敏感信息，不推送）
+PROJECT_CONTEXT.md
