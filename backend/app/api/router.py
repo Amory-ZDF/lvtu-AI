@@ -30,3 +30,11 @@ api_router.include_router(interactions_router, tags=["community-interactions"])
 api_router.include_router(search_router, tags=["search"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(ws_router, tags=["websocket"])
+
+# Agent router is optional (requires langgraph dependencies not in base install)
+try:
+    from app.integrations.agent import router as agent_router
+
+    api_router.include_router(agent_router, tags=["agent"])
+except ImportError:
+    pass

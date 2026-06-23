@@ -14,6 +14,7 @@ from app.integrations.amap import get_amap_client
 from app.models.destination import Destination
 from app.models.outfit import Outfit
 from app.models.photo_spot import PhotoSpot
+from app.models.travel_note import TravelNote
 from app.schemas.common import ApiResponse
 
 router = APIRouter()
@@ -50,7 +51,11 @@ def list_destinations(
         stmt = stmt.where(Destination.vibe_tags.contains([tag]))
 
     total = len(list(db.scalars(stmt)))
-    stmt = stmt.order_by(Destination.popularity.desc()).offset((page - 1) * page_size).limit(page_size)
+    stmt = (
+        stmt.order_by(Destination.popularity.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
     items = list(db.scalars(stmt))
 
     return success_response(
@@ -106,7 +111,11 @@ def list_photo_spots(
         stmt = stmt.where(PhotoSpot.photo_score >= min_score)
 
     total = len(list(db.scalars(stmt)))
-    stmt = stmt.order_by(PhotoSpot.photo_score.desc()).offset((page - 1) * page_size).limit(page_size)
+    stmt = (
+        stmt.order_by(PhotoSpot.photo_score.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
     items = list(db.scalars(stmt))
 
     return success_response(
@@ -149,6 +158,56 @@ def list_outfits(
     return success_response(
         {
             "items": [_outfit_to_dict(o) for o in items],
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+        },
+        request,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# 旅行笔记知识库
+# --------------------------------------------------------------------------- #
+
+@router.get("/notes", tags=["knowledge"])
+def search_notes(
+    request: Request,
+    db: SessionDep,
+    keyword: str | None = Query(default=None, description="搜索关键词"),
+    destination: str | None = Query(default=None, description="按目的地筛选"),
+    category: str | None = Query(default=None, description="按分类筛选"),
+    season: str | None = Query(default=None, description="按季节筛选"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> ApiResponse:
+    stmt = select(TravelNote)
+    if keyword:
+        pattern = f"%{keyword}%"
+        stmt = stmt.where(
+            or_(
+                TravelNote.title.ilike(pattern),
+                TravelNote.content.ilike(pattern),
+            )
+        )
+    if destination:
+        stmt = stmt.where(TravelNote.destination_name == destination)
+    if category:
+        stmt = stmt.where(TravelNote.category == category)
+    if season:
+        stmt = stmt.where(TravelNote.season == season)
+
+    total = len(list(db.scalars(stmt)))
+    stmt = (
+        stmt.order_by(TravelNote.like_count.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    items = list(db.scalars(stmt))
+
+    return success_response(
+        {
+            "items": [_travel_note_to_dict(n) for n in items],
             "page": page,
             "page_size": page_size,
             "total": total,
@@ -264,4 +323,29 @@ def _outfit_to_dict(o: Outfit) -> dict[str, Any]:
         "tips": o.tips,
         "weather_note": o.weather_note,
         "images": o.images,
+    }
+
+
+def _travel_note_to_dict(note: TravelNote) -> dict[str, Any]:
+    return {
+        "id": str(note.id),
+        "title": note.title,
+        "source": note.source,
+        "source_url": note.source_url,
+        "source_id": note.source_id,
+        "destination_name": note.destination_name,
+        "content": note.content,
+        "tags": note.tags,
+        "category": note.category,
+        "season": note.season,
+        "budget_level": note.budget_level,
+        "travel_style": note.travel_style,
+        "cover_image_url": note.cover_image_url,
+        "images": note.images,
+        "like_count": note.like_count,
+        "collect_count": note.collect_count,
+        "comment_count": note.comment_count,
+        "author_name": note.author_name,
+        "published_at": note.published_at.isoformat() if note.published_at else None,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
     }

@@ -89,6 +89,10 @@ class Settings(BaseSettings):
         default=7, alias="JWT_REFRESH_TOKEN_EXPIRE_DAYS"
     )
 
+    # LangGraph Agent 配置
+    tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
+    agent_max_iterations: int = Field(default=10, alias="AGENT_MAX_ITERATIONS")
+
     @field_validator(
         "cors_allow_origins",
         "cors_allow_methods",

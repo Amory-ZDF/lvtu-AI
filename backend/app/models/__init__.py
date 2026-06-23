@@ -13,6 +13,7 @@ from app.models.packing_item import PackingItem
 from app.models.photo_spot import PhotoSpot
 from app.models.photo_spot_recommendation import PhotoSpotRecommendation
 from app.models.plan_variant import PlanVariant
+from app.models.travel_note import TravelNote
 from app.models.trip import Trip
 from app.models.trip_day import TripDay
 from app.models.trip_point import TripPoint
@@ -41,6 +42,7 @@ __all__ = [
     "TripDay",
     "TripPoint",
     "TripVersion",
+    "TravelNote",
     "User",
     "UserBehavior",
     "UserPreference",

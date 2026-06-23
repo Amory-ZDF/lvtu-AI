@@ -76,3 +76,8 @@ backend/app/integrations/agent/PLUGGABLE_GUIDE.md
 
 # 项目上下文文档（含敏感信息，不推送）
 PROJECT_CONTEXT.md
+
+# 采集脚本运行产物（本地数据，不推送）
+backend/test_agent_results/
+backend/raw_notes/
+opencli-sandbox/
