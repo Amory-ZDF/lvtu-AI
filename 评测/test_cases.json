@@ -1,0 +1,194 @@
+[
+  {
+    "id": "DEST_001",
+    "name": "夏季低预算海边目的地推荐",
+    "scenario": "destination_recommendation",
+    "endpoint": "/planning/destinations",
+    "payload": {
+      "departure_city": "上海",
+      "budget_min": 2000,
+      "budget_max": 4000,
+      "duration_days": 3,
+      "season": "夏季",
+      "travel_style": ["轻松", "拍照"],
+      "interests": ["海边", "美食", "城市漫步"]
+    },
+    "sample_response": {
+      "query_summary": "上海出发，3天夏季低预算海边拍照旅行",
+      "destinations": [
+        {
+          "id": "xiamen",
+          "name": "厦门",
+          "country_or_region": "中国福建",
+          "match_score": 91,
+          "budget_range": "2500-3800元",
+          "best_season": "春季、夏初、秋季",
+          "vibe_tags": ["海边", "文艺", "美食", "拍照"],
+          "reasons": ["上海直飞/高铁可达，3天行程压力较小", "环岛路、沙坡尾适合轻松拍照", "预算可控且美食密度高"],
+          "hero_image": {"category": "city", "url": "", "thumbnail_url": "", "alt": "厦门", "provider": "mock", "placeholder": true},
+          "gallery": []
+        },
+        {
+          "id": "qingdao",
+          "name": "青岛",
+          "country_or_region": "中国山东",
+          "match_score": 86,
+          "budget_range": "2800-4000元",
+          "best_season": "夏季",
+          "vibe_tags": ["海边", "啤酒", "城市漫步"],
+          "reasons": ["海边城市氛围强，适合夏季", "老城街区和海岸线适合拍照", "餐饮和交通成本相对可控"],
+          "hero_image": {"category": "city", "url": "", "thumbnail_url": "", "alt": "青岛", "provider": "mock", "placeholder": true},
+          "gallery": []
+        }
+      ]
+    },
+    "checks": [
+      {"name": "结构完整", "type": "required_paths", "weight": 20, "paths": ["destinations", "destinations[].name", "destinations[].match_score", "destinations[].budget_range", "destinations[].reasons"], "reason": "目的地卡片必须可直接被前端渲染。"},
+      {"name": "海边拍照相关", "type": "keyword_any", "weight": 20, "keywords": ["海边", "拍照", "美食", "城市漫步", "厦门", "青岛"], "min_hits": 4, "reason": "用户核心诉求是低预算海边拍照。"},
+      {"name": "推荐数量", "type": "min_count", "weight": 15, "path": "destinations", "min": 2, "reason": "至少给出两个可比较目的地。"},
+      {"name": "理由充分", "type": "min_count", "weight": 15, "path": "destinations[].reasons", "min": 4, "reason": "推荐需要解释为什么适合。"},
+      {"name": "评分范围", "type": "numeric_range", "weight": 10, "path": "destinations[].match_score", "min": 0, "max": 100, "reason": "匹配分需要稳定在 0-100 范围。"},
+      {"name": "避免明显冲突", "type": "avoid_keywords", "weight": 20, "keywords": ["西藏", "高海拔", "长线徒步", "奢华"], "reason": "低预算短途海边需求不应推荐高海拔或高成本场景。"}
+    ]
+  },
+  {
+    "id": "DEST_002",
+    "name": "秋季文化向目的地推荐",
+    "scenario": "destination_recommendation",
+    "endpoint": "/planning/destinations",
+    "payload": {
+      "departure_city": "北京",
+      "budget_min": 3000,
+      "budget_max": 6000,
+      "duration_days": 5,
+      "season": "秋季",
+      "travel_style": ["深度", "文化"],
+      "interests": ["历史", "博物馆", "古城", "摄影"]
+    },
+    "sample_response": {
+      "query_summary": "北京出发，5天秋季文化深度旅行",
+      "destinations": [
+        {"id": "xian", "name": "西安", "country_or_region": "中国陕西", "match_score": 92, "budget_range": "3500-5500元", "best_season": "秋季", "vibe_tags": ["历史", "古都", "博物馆"], "reasons": ["历史文化密度高", "5天适合深度游", "秋季天气适合城市步行"], "hero_image": {"category": "city", "url": "", "thumbnail_url": "", "alt": "西安", "provider": "mock", "placeholder": true}, "gallery": []},
+        {"id": "nanjing", "name": "南京", "country_or_region": "中国江苏", "match_score": 88, "budget_range": "3200-5200元", "best_season": "秋季", "vibe_tags": ["历史", "民国", "摄影"], "reasons": ["博物馆和历史遗迹丰富", "秋季梧桐大道适合摄影", "城市交通便利"], "hero_image": {"category": "city", "url": "", "thumbnail_url": "", "alt": "南京", "provider": "mock", "placeholder": true}, "gallery": []}
+      ]
+    },
+    "checks": [
+      {"name": "结构完整", "type": "required_paths", "weight": 20, "paths": ["destinations", "destinations[].name", "destinations[].vibe_tags", "destinations[].reasons"], "reason": "文化目的地需要稳定展示标签和推荐理由。"},
+      {"name": "文化相关", "type": "keyword_any", "weight": 25, "keywords": ["历史", "文化", "博物馆", "古都", "南京", "西安", "摄影"], "min_hits": 5, "reason": "用户不是泛旅行，而是文化深度游。"},
+      {"name": "推荐数量", "type": "min_count", "weight": 15, "path": "destinations", "min": 2, "reason": "需要可比较方案。"},
+      {"name": "理由充分", "type": "min_count", "weight": 20, "path": "destinations[].reasons", "min": 5, "reason": "深度游更需要解释推荐依据。"},
+      {"name": "避免冲突", "type": "avoid_keywords", "weight": 20, "keywords": ["海岛躺平", "潜水", "夜店", "购物血拼"], "reason": "这些方向与文化深度游冲突。"}
+    ]
+  },
+  {
+    "id": "ROUTE_001",
+    "name": "厦门 3 日拍照美食路线",
+    "scenario": "route_generation",
+    "endpoint": "/planning/routes",
+    "payload": {"destination_name": "厦门", "duration_days": 3, "pace": "balanced", "travelers": 2, "interests": ["拍照", "美食", "海边"]},
+    "sample_response": {
+      "destination_name": "厦门",
+      "options": [
+        {
+          "id": "xiamen-balanced-3d",
+          "title": "厦门海岸线与老城 3 日",
+          "pace": "balanced",
+          "estimated_budget": "人均 3200 元",
+          "photo_score": 88,
+          "summary": "兼顾环岛路海边拍照、沙坡尾城市漫步和中山路美食",
+          "days": [
+            {"day": 1, "theme": "抵达与老城漫步", "commute_tip": "机场到中山路约 40 分钟", "spots": [{"time_slot": "下午", "name": "沙坡尾", "description": "适合街区拍照和咖啡休息", "suggested_duration_hours": 2.5, "images": []}]},
+            {"day": 2, "theme": "鼓浪屿与海边摄影", "commute_tip": "提前预约轮渡，岛上步行为主", "spots": [{"time_slot": "上午", "name": "鼓浪屿", "description": "建筑、人文和海景结合", "suggested_duration_hours": 5, "images": []}]},
+            {"day": 3, "theme": "环岛路与返程", "commute_tip": "建议打车或骑行分段完成", "spots": [{"time_slot": "上午", "name": "环岛路", "description": "海边骑行和日光拍摄", "suggested_duration_hours": 3, "images": []}]}
+          ]
+        }
+      ]
+    },
+    "checks": [
+      {"name": "结构完整", "type": "required_paths", "weight": 20, "paths": ["options", "options[].days", "options[].days[].theme", "options[].days[].spots", "options[].days[].commute_tip"], "reason": "路线必须能落到每天和景点。"},
+      {"name": "天数匹配", "type": "min_count", "weight": 15, "path": "options[].days", "min": 3, "reason": "用户要求 3 日路线。"},
+      {"name": "场景相关", "type": "keyword_any", "weight": 20, "keywords": ["厦门", "拍照", "美食", "海边", "环岛路", "沙坡尾", "鼓浪屿"], "min_hits": 5, "reason": "路线需要覆盖核心兴趣。"},
+      {"name": "可执行", "type": "min_count", "weight": 20, "path": "options[].days[].commute_tip", "min": 3, "reason": "每天至少需要通勤提示。"},
+      {"name": "节奏不过载", "type": "numeric_range", "weight": 10, "path": "options[].days[].spots[].suggested_duration_hours", "min": 0.5, "max": 8, "reason": "单点停留时间需合理。"},
+      {"name": "避免冲突", "type": "avoid_keywords", "weight": 15, "keywords": ["一天逛完整个福建", "凌晨赶路", "不需要预约"], "reason": "避免不可执行或误导性建议。"}
+    ]
+  },
+  {
+    "id": "ROUTE_002",
+    "name": "京都 2 日慢节奏文化路线",
+    "scenario": "route_generation",
+    "endpoint": "/planning/routes",
+    "payload": {"destination_name": "京都", "duration_days": 2, "pace": "slow", "travelers": 1, "interests": ["寺庙", "文化", "摄影"]},
+    "sample_response": {
+      "destination_name": "京都",
+      "options": [
+        {"id": "kyoto-slow-2d", "title": "京都寺庙与街区慢游", "pace": "slow", "estimated_budget": "人均 4500 元", "photo_score": 91, "summary": "控制景点数量，适合慢节奏文化体验", "days": [
+          {"day": 1, "theme": "东山寺庙与街区", "commute_tip": "清水寺、二年坂、祇园步行串联", "spots": [{"time_slot": "上午", "name": "清水寺", "description": "经典寺庙与城市视角", "suggested_duration_hours": 2.5, "images": []}]},
+          {"day": 2, "theme": "岚山与竹林", "commute_tip": "乘坐 JR 或阪急到岚山，避免中午人流高峰", "spots": [{"time_slot": "上午", "name": "岚山竹林", "description": "清晨拍摄更安静", "suggested_duration_hours": 3, "images": []}]}
+        ]}
+      ]
+    },
+    "checks": [
+      {"name": "天数匹配", "type": "min_count", "weight": 20, "path": "options[].days", "min": 2, "reason": "2日游不能缺天。"},
+      {"name": "慢节奏相关", "type": "keyword_any", "weight": 25, "keywords": ["京都", "寺庙", "文化", "慢", "清水寺", "岚山"], "min_hits": 5, "reason": "用户要慢节奏文化游。"},
+      {"name": "结构完整", "type": "required_paths", "weight": 25, "paths": ["options[].title", "options[].summary", "options[].days[].spots[].name", "options[].days[].commute_tip"], "reason": "前端路线页展示依赖这些字段。"},
+      {"name": "避免过载", "type": "avoid_keywords", "weight": 30, "keywords": ["一天十个景点", "特种兵", "通宵", "暴走"], "reason": "慢节奏路线必须避免过载。"}
+    ]
+  },
+  {
+    "id": "OUTFIT_001",
+    "name": "春季海边拍照穿搭",
+    "scenario": "outfit_recommendation",
+    "endpoint": null,
+    "payload": {"destination_name": "厦门", "season": "春季", "scene": "海边拍照", "style": "清新文艺"},
+    "sample_response": {"scene": "海边拍照", "season": "春季", "style": "清新文艺", "items": [{"name": "浅色衬衫"}, {"name": "高腰牛仔裤"}, {"name": "防晒草帽"}, {"name": "舒适小白鞋"}], "tips": "海边风大，建议带薄外套；鞋子优先舒适防滑。", "images": []},
+    "checks": [
+      {"name": "结构完整", "type": "required_paths", "weight": 25, "paths": ["scene", "season", "style", "items", "tips"], "reason": "穿搭卡片需要稳定字段。"},
+      {"name": "物品数量", "type": "min_count", "weight": 20, "path": "items", "min": 4, "reason": "穿搭建议至少包括上装、下装、鞋、配饰/防护。"},
+      {"name": "场景相关", "type": "keyword_any", "weight": 25, "keywords": ["海边", "春季", "防晒", "舒适", "拍照", "薄外套"], "min_hits": 4, "reason": "需要兼顾出片和实用。"},
+      {"name": "避免冲突", "type": "avoid_keywords", "weight": 30, "keywords": ["高跟鞋徒步", "厚羽绒服", "不需要防晒"], "reason": "海边旅行不能忽略舒适和防晒。"}
+    ]
+  },
+  {
+    "id": "OUTFIT_002",
+    "name": "冬季高海拔保暖穿搭",
+    "scenario": "outfit_recommendation",
+    "endpoint": null,
+    "payload": {"destination_name": "香格里拉", "season": "冬季", "scene": "高海拔户外", "style": "保暖实用"},
+    "sample_response": {"scene": "高海拔户外", "season": "冬季", "style": "保暖实用", "items": [{"name": "防风羽绒服"}, {"name": "保暖内搭"}, {"name": "防滑徒步鞋"}, {"name": "帽子和手套"}, {"name": "墨镜和防晒"}], "tips": "高海拔紫外线强，注意防晒和保暖，避免剧烈运动。", "images": []},
+    "checks": [
+      {"name": "保暖完整", "type": "keyword_any", "weight": 25, "keywords": ["羽绒服", "保暖", "防滑", "帽子", "手套", "防晒"], "min_hits": 5, "reason": "高海拔冬季场景安全优先。"},
+      {"name": "安全提醒", "type": "keyword_any", "weight": 20, "keywords": ["高海拔", "紫外线", "避免剧烈运动", "保暖"], "min_hits": 3, "reason": "机器人/AI 产品要能给出风险兜底。"},
+      {"name": "物品数量", "type": "min_count", "weight": 20, "path": "items", "min": 5, "reason": "高海拔场景需要更完整装备。"},
+      {"name": "避免冲突", "type": "avoid_keywords", "weight": 35, "keywords": ["短袖", "凉鞋", "不用防晒", "轻薄即可"], "reason": "这些建议会造成体验和安全风险。"}
+    ]
+  },
+  {
+    "id": "SPOT_001",
+    "name": "厦门日出机位推荐",
+    "scenario": "photo_spot_recommendation",
+    "endpoint": null,
+    "payload": {"destination_name": "厦门", "keyword": "日出 海边 人像"},
+    "sample_response": {"name": "环岛路黄厝海滩", "location": "厦门思明区环岛南路", "composition": "用海岸线做引导线，人物放在画面三分之一处，日出时逆光拍剪影。", "best_time": "日出前后 30 分钟", "photo_score": 9.1, "tips": "提前查询天气和潮汐，清晨人少但海风较大。", "images": []},
+    "checks": [
+      {"name": "结构完整", "type": "required_paths", "weight": 25, "paths": ["name", "location", "composition", "best_time", "photo_score", "tips"], "reason": "机位推荐必须可执行。"},
+      {"name": "摄影相关", "type": "keyword_any", "weight": 25, "keywords": ["日出", "海岸线", "构图", "逆光", "剪影", "天气", "潮汐"], "min_hits": 5, "reason": "用户要的是机位，不是普通景点介绍。"},
+      {"name": "评分范围", "type": "numeric_range", "weight": 15, "path": "photo_score", "min": 0, "max": 10, "reason": "机位分数应在 0-10。"},
+      {"name": "避免空泛", "type": "avoid_keywords", "weight": 35, "keywords": ["随便拍", "任何时间都好", "不用看天气"], "reason": "机位推荐需要具体时机和注意事项。"}
+    ]
+  },
+  {
+    "id": "SAFETY_001",
+    "name": "亲子短途路线安全兜底",
+    "scenario": "route_generation",
+    "endpoint": "/planning/routes",
+    "payload": {"destination_name": "杭州", "duration_days": 2, "pace": "slow", "travelers": 3, "interests": ["亲子", "轻松", "自然"]},
+    "sample_response": {"destination_name": "杭州", "options": [{"id": "hangzhou-family-2d", "title": "杭州亲子轻松 2 日", "pace": "slow", "estimated_budget": "人均 1800 元", "photo_score": 82, "summary": "减少换乘和暴走，适合亲子慢游。", "days": [{"day": 1, "theme": "西湖轻松游", "commute_tip": "选择湖滨附近住宿，减少通勤。", "spots": [{"time_slot": "上午", "name": "西湖断桥", "description": "步行距离短，适合亲子散步。", "suggested_duration_hours": 2, "images": []}]}, {"day": 2, "theme": "自然与返程", "commute_tip": "午后预留返程时间，避免孩子疲劳。", "spots": [{"time_slot": "上午", "name": "杭州植物园", "description": "空间开阔，适合轻松游玩。", "suggested_duration_hours": 2.5, "images": []}]}]}]},
+    "checks": [
+      {"name": "亲子相关", "type": "keyword_any", "weight": 25, "keywords": ["亲子", "轻松", "减少通勤", "避免疲劳", "慢游"], "min_hits": 4, "reason": "亲子旅行优先体验稳定。"},
+      {"name": "天数匹配", "type": "min_count", "weight": 15, "path": "options[].days", "min": 2, "reason": "2日路线需要完整两天。"},
+      {"name": "安全兜底", "type": "avoid_keywords", "weight": 35, "keywords": ["特种兵", "凌晨", "连续暴走", "高强度徒步"], "reason": "亲子路线必须避免过载。"},
+      {"name": "可执行", "type": "required_paths", "weight": 25, "paths": ["options[].days[].commute_tip", "options[].days[].spots[].suggested_duration_hours"], "reason": "需要通勤和时长信息。"}
+    ]
+  }
+]

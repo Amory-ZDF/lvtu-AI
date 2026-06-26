@@ -81,3 +81,6 @@ PROJECT_CONTEXT.md
 backend/test_agent_results/
 backend/raw_notes/
 opencli-sandbox/
+
+# Evaluation run outputs
+评测/results/
