@@ -187,36 +187,3 @@ class PackingItemRead(ORMModel):
     created_at: datetime
     updated_at: datetime
 
-
-class CommunityPostCreate(BaseModel):
-    author_user_id: UUID
-    title: str
-    content: str
-    cover_image_url: str | None = None
-    status: str = "draft"
-    published_at: datetime | None = None
-
-
-class CommunityPostUpdate(BaseModel):
-    author_user_id: UUID | None = None
-    title: str | None = None
-    content: str | None = None
-    cover_image_url: str | None = None
-    status: str | None = None
-    published_at: datetime | None = None
-    like_count: int | None = None
-    comment_count: int | None = None
-
-
-class CommunityPostRead(ORMModel):
-    id: UUID
-    author_user_id: UUID
-    title: str
-    content: str
-    cover_image_url: str | None
-    status: str
-    like_count: int
-    comment_count: int
-    published_at: datetime | None
-    created_at: datetime
-    updated_at: datetime

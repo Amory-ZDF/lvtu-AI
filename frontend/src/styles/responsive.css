@@ -6,7 +6,6 @@
   .dest-scroll { grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .dp-hero { height: 130px; }
   .trip-cards { grid-template-columns: repeat(2, 1fr); }
-  .community-grid { grid-template-columns: repeat(2, 1fr); }
   .essentials-grid { grid-template-columns: repeat(3, 1fr); }
   .home-hero { padding: 44px 0 36px; }
   .home-hero h1 { font-size: 2.2rem; }
@@ -25,7 +24,6 @@
   .home-hero p { max-width: 100%; }
 
   .trip-cards { grid-template-columns: 1fr 1fr; gap: 12px; }
-  .community-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .dest-scroll { grid-template-columns: 1fr; gap: 16px; }
   .dp-hero { height: 180px; }
   .dp-body { padding: 16px; }
@@ -70,7 +68,6 @@
   .btn-lg { padding: 12px 24px; font-size: 0.9rem; }
 
   .trip-cards { grid-template-columns: 1fr; }
-  .community-grid { grid-template-columns: 1fr; }
   .outfit-cards { grid-template-columns: 1fr; }
   .essentials-grid { grid-template-columns: 1fr 1fr; }
   .budget-strip { grid-template-columns: repeat(2, 1fr); }
@@ -100,7 +97,6 @@
 /* -- 1400px+: large screens use more columns -- */
 @media (min-width: 1400px) {
   .trip-cards { grid-template-columns: repeat(4, 1fr); }
-  .community-grid { grid-template-columns: repeat(4, 1fr); }
   .outfit-cards { grid-template-columns: repeat(4, 1fr); }
   .essentials-grid { grid-template-columns: repeat(6, 1fr); }
   .spots-grid { grid-template-columns: repeat(3, 1fr); }
@@ -109,7 +105,6 @@
 @media (min-width: 1800px) {
   .spots-grid { grid-template-columns: repeat(4, 1fr); }
   .trip-cards { grid-template-columns: repeat(5, 1fr); }
-  .community-grid { grid-template-columns: repeat(5, 1fr); }
   .outfit-cards { grid-template-columns: repeat(5, 1fr); }
   .dp-hero { height: 240px; }
 }

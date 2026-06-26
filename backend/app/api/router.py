@@ -4,7 +4,6 @@ from app.api.v1.adjustments import router as adjustments_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.core_business import router as core_business_router
 from app.api.v1.health import router as health_router
-from app.api.v1.interactions import router as interactions_router
 from app.api.v1.jobs import router as jobs_router
 from app.api.v1.knowledge import router as knowledge_router
 from app.api.v1.notifications import router as notifications_router
@@ -26,7 +25,6 @@ api_router.include_router(outfits_router, tags=["outfits"])
 api_router.include_router(spots_router, tags=["spots"])
 api_router.include_router(adjustments_router, tags=["adjustments"])
 api_router.include_router(versions_router, tags=["trip-versions"])
-api_router.include_router(interactions_router, tags=["community-interactions"])
 api_router.include_router(search_router, tags=["search"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(ws_router, tags=["websocket"])

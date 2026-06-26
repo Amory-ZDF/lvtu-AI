@@ -1,9 +1,6 @@
 from app.models import (  # noqa: F401
     collaborator,
-    comment,
-    community_post,
     destination_candidate,
-    favorite,
     generation_job,
     media_asset,
     notification,

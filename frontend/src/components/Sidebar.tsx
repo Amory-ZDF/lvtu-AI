@@ -17,7 +17,6 @@ export function Sidebar() {
 
   const NAV_ITEMS = [
     { to: '/', icon: '🏠', label: t('nav.home'), end: true },
-    { to: '/community', icon: '💬', label: t('nav.community'), end: false },
   ]
 
   const handleNavClick = () => {

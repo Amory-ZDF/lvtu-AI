@@ -1,9 +1,6 @@
 from app.models.collaborator import Collaborator
-from app.models.comment import Comment
-from app.models.community_post import CommunityPost
 from app.models.destination import Destination
 from app.models.destination_candidate import DestinationCandidate
-from app.models.favorite import Favorite
 from app.models.generation_job import GenerationJob
 from app.models.media_asset import MediaAsset
 from app.models.notification import Notification
@@ -24,11 +21,8 @@ from app.models.user_preference import UserPreference
 
 __all__ = [
     "Collaborator",
-    "Comment",
-    "CommunityPost",
     "Destination",
     "DestinationCandidate",
-    "Favorite",
     "GenerationJob",
     "MediaAsset",
     "Notification",

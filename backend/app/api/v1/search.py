@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from app.api.responses import success_response
 from app.db.session import get_db_session
 from app.middleware.auth import get_current_user_optional
-from app.models.community_post import CommunityPost
 from app.models.trip import Trip
 from app.models.trip_point import TripPoint
 from app.models.user import User
@@ -20,7 +19,7 @@ router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_db_session)]
 CurrentUserOptional = Annotated[User | None, Depends(get_current_user_optional)]
 
-SearchType = Literal["destination", "post", "spot", "all"]
+SearchType = Literal["destination", "spot", "all"]
 
 _SNIPPET_MAX_LENGTH = 120
 
@@ -64,27 +63,6 @@ def _search_destinations(db: Session, keyword: str) -> list[SearchResultItem]:
     ]
 
 
-def _search_posts(db: Session, keyword: str) -> list[SearchResultItem]:
-    pattern = f"%{keyword}%"
-    stmt = select(CommunityPost).where(
-        or_(
-            CommunityPost.title.ilike(pattern),
-            CommunityPost.content.ilike(pattern),
-        )
-    )
-    posts = list(db.scalars(stmt))
-    return [
-        SearchResultItem(
-            type="post",
-            id=post.id,
-            title=post.title,
-            snippet=_make_snippet(post.content, keyword),
-            image_url=post.cover_image_url,
-        )
-        for post in posts
-    ]
-
-
 def _search_spots(db: Session, keyword: str) -> list[SearchResultItem]:
     pattern = f"%{keyword}%"
     stmt = select(TripPoint).where(
@@ -120,8 +98,6 @@ def search(
 
     if type in ("destination", "all"):
         items.extend(_search_destinations(db, keyword))
-    if type in ("post", "all"):
-        items.extend(_search_posts(db, keyword))
     if type in ("spot", "all"):
         items.extend(_search_spots(db, keyword))
 

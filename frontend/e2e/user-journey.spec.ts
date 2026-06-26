@@ -131,18 +131,5 @@ test.describe('6 阶段用户主路径', () => {
       // 删除首个行程点后，第 1 天仅剩 1 个行程点
       await expect(day1.locator('.stop-card')).toHaveCount(1, { timeout: 5000 })
     })
-
-    // ── 阶段 6：分享（社区浏览） ──
-    await test.step('阶段 6：分享', async () => {
-      await page.goto('/community')
-      await expect(page.getByText('💬 社区')).toBeVisible()
-
-      // 验证社区帖子列表显示
-      await expect(page.getByText('厦门拍照攻略 📸')).toBeVisible({ timeout: 10000 })
-
-      // 验证标签筛选存在
-      await expect(page.locator('.community-tags .chip', { hasText: '全部' })).toBeVisible()
-      await expect(page.locator('.community-tags .chip', { hasText: '拍照' })).toBeVisible()
-    })
   })
 })

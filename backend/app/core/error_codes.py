@@ -22,7 +22,6 @@ class ErrorCode:
     TRIP_DAY_NOT_FOUND = "trip_day_not_found"
     TRIP_POINT_NOT_FOUND = "trip_point_not_found"
     PACKING_ITEM_NOT_FOUND = "packing_item_not_found"
-    COMMUNITY_POST_NOT_FOUND = "community_post_not_found"
     JOB_NOT_FOUND = "job_not_found"
     OUTFIT_NOT_FOUND = "outfit_not_found"
     PHOTO_SPOT_NOT_FOUND = "photo_spot_not_found"

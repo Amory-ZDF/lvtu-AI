@@ -23,7 +23,6 @@ def _make_settings(**overrides: Any) -> SimpleNamespace:
         "rate_limit_default": "60/minute",
         "rate_limit_auth": "5/minute",
         "rate_limit_ai": "10/minute",
-        "rate_limit_post": "20/minute",
         "api_v1_prefix": "/api/v1",
     }
     defaults.update(overrides)
@@ -48,14 +47,6 @@ def _build_app(settings: SimpleNamespace) -> FastAPI:
 
     @app.post("/api/v1/planning/destinations")
     async def plan() -> dict[str, bool]:
-        return {"success": True}
-
-    @app.post("/api/v1/community-posts")
-    async def create_post() -> dict[str, bool]:
-        return {"success": True}
-
-    @app.get("/api/v1/community-posts")
-    async def list_posts() -> dict[str, bool]:
         return {"success": True}
 
     return app
@@ -122,17 +113,6 @@ def test_ai_rate_limit() -> None:
         # default 桶独立
         assert client.get("/").status_code == 200
 
-
-def test_post_rate_limit_only_for_post_method() -> None:
-    """POST /api/v1/community-posts 使用 post 规则；GET 不受影响。"""
-    settings = _make_settings(rate_limit_post="2/minute", rate_limit_default="10/minute")
-    with _client(settings) as client:
-        for _ in range(2):
-            assert client.post("/api/v1/community-posts").status_code == 200
-        assert client.post("/api/v1/community-posts").status_code == 429
-
-        # GET 使用 default 规则，不受 post 限流影响
-        assert client.get("/api/v1/community-posts").status_code == 200
 
 
 def test_rate_limit_headers_on_success() -> None:

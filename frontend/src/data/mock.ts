@@ -3,7 +3,7 @@
  * 后续 Task 20 接入真实接口后可移除
  */
 
-import type { Trip, CommunityPost } from '@/types'
+import type { Trip } from '@/types'
 
 /** 我的行程卡片（首页） */
 export interface TripCardData {
@@ -622,76 +622,6 @@ export const mockPackCategories: PackCategoryData[] = [
   },
 ]
 
-/** 社区帖子 */
-export interface CommunityPostCard {
-  id: string
-  title: string
-  desc: string
-  author: string
-  gradient: string
-  clickable?: boolean
-  /** 封面图 URL（存在时优先用 LazyImage 渲染，gradient 作为兜底） */
-  imageUrl?: string | null
-}
-
-export const mockCommunityPosts: CommunityPostCard[] = [
-  {
-    id: 'p1',
-    title: '苏苏的大理周末穿搭全记录',
-    desc: '洱海环线 · 2天 · 9个机位分享',
-    author: '苏苏',
-    gradient: 'linear-gradient(135deg,oklch(0.65 0.12 22),oklch(0.57 0.15 45))',
-    clickable: true,
-  },
-  {
-    id: 'p2',
-    title: '小林的川西秘境日记',
-    desc: '四姑娘山 · 3天穿越 · 装备攻略',
-    author: '小林',
-    gradient: 'linear-gradient(135deg,oklch(0.52 0.13 260),oklch(0.46 0.14 285))',
-    clickable: true,
-  },
-  {
-    id: 'p3',
-    title: '阿毛的厦门逛吃地图',
-    desc: '鼓浪屿 + 中山路 · 日均¥150吃饱',
-    author: '阿毛',
-    gradient: 'linear-gradient(135deg,oklch(0.58 0.15 170),oklch(0.50 0.13 198))',
-  },
-  {
-    id: 'p4',
-    title: 'David 的虎跳峡徒步',
-    desc: '2日穿越 · 海拔 2400m · 详细路书',
-    author: 'David',
-    gradient: 'linear-gradient(135deg,oklch(0.56 0.14 100),oklch(0.50 0.13 120))',
-  },
-  {
-    id: 'p5',
-    title: '周末特种兵 · 重庆篇',
-    desc: '48h暴走 · 8个出片机位',
-    author: 'Rachel',
-    gradient: 'linear-gradient(135deg,oklch(0.60 0.15 340),oklch(0.52 0.16 5))',
-  },
-  {
-    id: 'p6',
-    title: '青岛老城文艺漫步',
-    desc: '德式建筑 + 海边咖啡馆合集',
-    author: '小晴',
-    gradient: 'linear-gradient(135deg,oklch(0.54 0.14 190),oklch(0.47 0.15 215))',
-  },
-]
-
-/** 社区标签 */
-export const mockCommunityTags = [
-  '全部',
-  '📸 拍照',
-  '🍜 美食',
-  '🏔️ 户外',
-  '🏖️ 海边',
-  '🏛️ 人文',
-  '🧘 疗愈',
-]
-
 /** 穿搭风格标签 */
 export const mockStyleChips = ['📸 出片优先', '👟 舒适轻便', '✨ 法式简约', '🧥 保暖实用']
 
@@ -722,18 +652,3 @@ export const mockTrips: Trip[] = [
     updated_at: '2026-03-01T00:00:00Z',
   },
 ]
-
-/** 占位 CommunityPost 列表 */
-export const mockCommunityPostList: CommunityPost[] = mockCommunityPosts.map((p, i) => ({
-  id: p.id,
-  author_user_id: 'mock-user',
-  title: p.title,
-  content: p.desc,
-  cover_image_url: null,
-  status: 'published',
-  like_count: 0,
-  comment_count: 0,
-  published_at: '2026-03-01T00:00:00Z',
-  created_at: `2026-03-0${i + 1}T00:00:00Z`,
-  updated_at: `2026-03-0${i + 1}T00:00:00Z`,
-}))

@@ -7,7 +7,7 @@ import { apiClient, type QueryParams } from './api'
 import type { ListResponse } from '@/types'
 
 /** 搜索类型 */
-export type SearchType = 'destination' | 'post' | 'spot' | 'all'
+export type SearchType = 'destination' | 'spot' | 'all'
 
 /** 搜索结果项（通用结构） */
 export interface SearchResultItem {

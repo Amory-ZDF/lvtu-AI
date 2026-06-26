@@ -461,23 +461,6 @@
 .pack-count small { font-size: 0.76rem; color: var(--ink-tertiary); font-weight: 400; }
 
 /* ═══════════════ COMMUNITY ═══════════════ */
-.community-header { margin-bottom: 24px; }
-.community-header h2 { margin-bottom: 4px; }
-.community-tags { display: flex; gap: 7px; margin-bottom: 22px; flex-wrap: wrap; }
-.community-tags .chip { font-size: 0.82rem; padding: 7px 16px; }
-.community-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.post-card {
-  background: var(--surface-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); overflow: hidden; cursor: pointer;
-  transition: all 0.2s;
-}
-.post-card:hover { border-color: var(--brand); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
-.post-card .post-img { height: 150px; background-size: cover; background-position: center; }
-.post-card .post-body { padding: 14px; }
-.post-card .post-body h4 { font-size: 0.88rem; margin-bottom: 3px; }
-.post-card .post-body p { font-size: 0.76rem; color: var(--ink-tertiary); }
-.post-card .post-author { display: flex; align-items: center; gap: 8px; padding: 0 14px 14px; font-size: 0.78rem; color: var(--ink-secondary); }
-.post-card .post-author .pa { width: 22px; height: 22px; border-radius: 50%; background: var(--brand-muted); }
 
 /* ═══════════════ Detail modal popup ═══════════════ */
 .detail-overlay {

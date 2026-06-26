@@ -80,7 +80,6 @@
 - `/users/...`
 - `/trips/...`
 - `/trip-days/...`
-- `/community-posts...`
 
 删除接口返回：
 - `204 No Content`
@@ -182,24 +181,6 @@
   "quantity": 1,
   "is_checked": false,
   "note": "SPF50+",
-  "created_at": "2026-06-17T10:00:00Z",
-  "updated_at": "2026-06-17T10:00:00Z"
-}
-```
-
-### 3.6 社区帖子 `CommunityPost`
-
-```json
-{
-  "id": "uuid",
-  "author_user_id": "uuid",
-  "title": "上海两天一夜出片路线",
-  "content": "适合周末城市漫游",
-  "cover_image_url": "https://...",
-  "status": "published",
-  "like_count": 0,
-  "comment_count": 0,
-  "published_at": "2026-06-17T10:00:00Z",
   "created_at": "2026-06-17T10:00:00Z",
   "updated_at": "2026-06-17T10:00:00Z"
 }
@@ -608,73 +589,7 @@
 成功响应：
 - `204 No Content`
 
-### 4.8 社区帖子
-
-#### `GET /api/v1/community-posts`
-
-用途：
-- 获取社区帖子列表
-
-查询参数：
-- `author_user_id`: UUID，可选
-- `status`: 字符串，可选
-- `limit`: 默认 `20`，范围 `1-100`
-- `offset`: 默认 `0`
-
-排序规则：
-- 按 `created_at desc`
-- 然后按 `id desc`
-
-#### `POST /api/v1/community-posts`
-
-用途：
-- 创建社区帖子
-
-请求体：
-
-```json
-{
-  "author_user_id": "uuid",
-  "title": "上海两天一夜出片路线",
-  "content": "适合周末出游和拍照",
-  "cover_image_url": "https://example.com/cover.jpg",
-  "status": "published",
-  "published_at": "2026-06-17T10:00:00Z"
-}
-```
-
-说明：
-- 当 `status = published` 时，服务端会自动处理 `published_at`
-
-#### `GET /api/v1/community-posts/{post_id}`
-
-用途：
-- 获取单篇帖子详情
-
-#### `PATCH /api/v1/community-posts/{post_id}`
-
-用途：
-- 更新帖子
-
-可更新字段：
-- `author_user_id`
-- `title`
-- `content`
-- `cover_image_url`
-- `status`
-- `published_at`
-- `like_count`
-- `comment_count`
-
-#### `DELETE /api/v1/community-posts/{post_id}`
-
-用途：
-- 删除帖子
-
-成功响应：
-- `204 No Content`
-
-### 4.9 规划占位接口
+### 4.8 规划占位接口
 
 这组接口当前为占位实现，已预留出后续接入：
 - 大模型 API
@@ -797,9 +712,8 @@
 5. `POST /api/v1/trips/{trip_id}/days`
 6. `POST /api/v1/trip-days/{trip_day_id}/points`
 7. `POST /api/v1/trips/{trip_id}/packing-items`
-8. `GET /api/v1/community-posts`
-9. `POST /api/v1/planning/destinations`
-10. `POST /api/v1/planning/routes`
+8. `POST /api/v1/planning/destinations`
+9. `POST /api/v1/planning/routes`
 
 ## 7. curl 示例
 

@@ -47,12 +47,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "default": parse_rate_limit(settings.rate_limit_default),
             "auth": parse_rate_limit(settings.rate_limit_auth),
             "ai": parse_rate_limit(settings.rate_limit_ai),
-            "post": parse_rate_limit(settings.rate_limit_post),
         }
         prefix = settings.api_v1_prefix.rstrip("/")
         self._auth_paths: set[str] = {f"{prefix}/auth/login", f"{prefix}/auth/register"}
         self._ai_prefix: str = f"{prefix}/planning/"
-        self._post_path: str = f"{prefix}/community-posts"
         self._store: dict[str, list[float]] = {}
 
     def _resolve_rule(self, method: str, path: str) -> str:
@@ -60,8 +58,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return "auth"
         if path.startswith(self._ai_prefix):
             return "ai"
-        if path == self._post_path and method.upper() == "POST":
-            return "post"
         return "default"
 
     @staticmethod

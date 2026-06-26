@@ -14,7 +14,6 @@ from app.core.error_codes import ErrorCode
 from app.core.exceptions import AppException
 from app.db.session import get_db_session
 from app.middleware.auth import get_current_user, get_current_user_optional
-from app.models.community_post import CommunityPost
 from app.models.packing_item import PackingItem
 from app.models.trip import Trip
 from app.models.trip_day import TripDay
@@ -24,9 +23,6 @@ from app.models.user import User
 from app.models.user_preference import UserPreference
 from app.schemas.common import ApiResponse
 from app.schemas.domain import (
-    CommunityPostCreate,
-    CommunityPostRead,
-    CommunityPostUpdate,
     PackingItemCheckUpdate,
     PackingItemCreate,
     PackingItemRead,
@@ -191,17 +187,6 @@ def _get_packing_item_or_404(db: Session, trip_id: UUID, item_id: UUID) -> Packi
     return item
 
 
-def _get_community_post_or_404(db: Session, post_id: UUID) -> CommunityPost:
-    post = db.get(CommunityPost, post_id)
-    if post is None:
-        raise AppException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            code=ErrorCode.COMMUNITY_POST_NOT_FOUND,
-            message="社区帖子不存在",
-        )
-    return post
-
-
 def _normalize_position(position: int | None, length: int) -> int:
     if length <= 0:
         return 1
@@ -243,23 +228,6 @@ def _validate_reorder_ids(ordered_ids: list[UUID], existing_ids: list[UUID], det
             code=ErrorCode.VALIDATION_ERROR,
             message=detail,
         )
-
-
-def _apply_post_publication_state(
-    post: CommunityPost,
-    *,
-    status_value: str | None,
-    published_at: datetime | None,
-) -> None:
-    if status_value is not None:
-        post.status = status_value
-
-    if post.status == "published":
-        post.published_at = published_at or post.published_at or datetime.now(timezone.utc)
-    elif status_value is not None:
-        post.published_at = None
-    elif published_at is not None:
-        post.published_at = published_at
 
 
 def _serialize_trip_snapshot(db: Session, trip_id: UUID) -> dict:
@@ -922,123 +890,3 @@ def delete_packing_item(
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-
-@router.get("/community-posts", tags=["community-posts"])
-def list_community_posts(
-    request: Request,
-    db: SessionDep,
-    current_user: CurrentUserOptional,
-    author_user_id: UUID | None = None,
-    status_value: str | None = Query(default=None, alias="status"),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
-) -> ApiResponse:
-    stmt = select(CommunityPost)
-    count_stmt = select(func.count()).select_from(CommunityPost)
-    if author_user_id is not None:
-        stmt = stmt.where(CommunityPost.author_user_id == author_user_id)
-        count_stmt = count_stmt.where(CommunityPost.author_user_id == author_user_id)
-    if status_value is not None:
-        stmt = stmt.where(CommunityPost.status == status_value)
-        count_stmt = count_stmt.where(CommunityPost.status == status_value)
-    total = db.scalar(count_stmt) or 0
-    stmt = (
-        stmt.order_by(CommunityPost.created_at.desc(), CommunityPost.id.desc())
-        .limit(page_size)
-        .offset((page - 1) * page_size)
-    )
-    posts = list(db.scalars(stmt))
-    items = [CommunityPostRead.model_validate(p).model_dump(mode="json") for p in posts]
-    return paginated_response(items, request, page=page, page_size=page_size, total=total)
-
-
-@router.post(
-    "/community-posts",
-    status_code=status.HTTP_201_CREATED,
-    tags=["community-posts"],
-)
-def create_community_post(
-    payload: CommunityPostCreate,
-    request: Request,
-    db: SessionDep,
-    current_user: CurrentUserOptional,
-) -> ApiResponse:
-    _get_user_or_404(db, payload.author_user_id)
-    post = CommunityPost(
-        author_user_id=payload.author_user_id,
-        title=payload.title,
-        content=payload.content,
-        cover_image_url=payload.cover_image_url,
-        status=payload.status,
-    )
-    _apply_post_publication_state(
-        post,
-        status_value=payload.status,
-        published_at=payload.published_at,
-    )
-    db.add(post)
-    db.commit()
-    db.refresh(post)
-    return success_response(CommunityPostRead.model_validate(post).model_dump(mode="json"), request)
-
-
-@router.get(
-    "/community-posts/{post_id}",
-    tags=["community-posts"],
-)
-def get_community_post(
-    post_id: UUID,
-    request: Request,
-    db: SessionDep,
-    current_user: CurrentUserOptional,
-) -> ApiResponse:
-    post = _get_community_post_or_404(db, post_id)
-    return success_response(CommunityPostRead.model_validate(post).model_dump(mode="json"), request)
-
-
-@router.patch(
-    "/community-posts/{post_id}",
-    tags=["community-posts"],
-)
-def update_community_post(
-    post_id: UUID,
-    payload: CommunityPostUpdate,
-    request: Request,
-    db: SessionDep,
-    current_user: CurrentUserOptional,
-) -> ApiResponse:
-    post = _get_community_post_or_404(db, post_id)
-    update_data = payload.model_dump(exclude_unset=True)
-
-    if "author_user_id" in update_data and update_data["author_user_id"] is not None:
-        _get_user_or_404(db, update_data["author_user_id"])
-        post.author_user_id = update_data.pop("author_user_id")
-
-    status_value = update_data.pop("status", None)
-    published_at = None
-    if "published_at" in update_data:
-        published_at = update_data.pop("published_at")
-
-    for field, value in update_data.items():
-        setattr(post, field, value)
-
-    _apply_post_publication_state(post, status_value=status_value, published_at=published_at)
-    db.commit()
-    db.refresh(post)
-    return success_response(CommunityPostRead.model_validate(post).model_dump(mode="json"), request)
-
-
-@router.delete(
-    "/community-posts/{post_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    tags=["community-posts"],
-)
-def delete_community_post(
-    post_id: UUID,
-    db: SessionDep,
-    current_user: CurrentUserOptional,
-) -> Response:
-    post = _get_community_post_or_404(db, post_id)
-    db.delete(post)
-    db.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)

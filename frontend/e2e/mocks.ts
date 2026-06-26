@@ -228,34 +228,6 @@ export const mockRouteOptions = {
   ],
 }
 
-export const mockPosts = [
-  {
-    id: 'post-1',
-    author_user_id: 'user-2',
-    title: '厦门拍照攻略 📸',
-    content: '环岛路日出机位分享，美食推荐',
-    cover_image_url: null,
-    status: 'published' as const,
-    like_count: 12,
-    comment_count: 3,
-    published_at: NOW,
-    created_at: NOW,
-    updated_at: NOW,
-  },
-  {
-    id: 'post-2',
-    author_user_id: 'user-3',
-    title: '大理美食探店 🍜',
-    content: '白族风味，户外徒步路线推荐',
-    cover_image_url: null,
-    status: 'published' as const,
-    like_count: 8,
-    comment_count: 1,
-    published_at: NOW,
-    created_at: NOW,
-    updated_at: NOW,
-  },
-]
 
 /** SSE 进度流 body：先发 progress 事件，再发 complete 事件携带目的地结果 */
 function buildDestinationsSseBody(): string {
@@ -533,37 +505,6 @@ export async function setupApiMocks(page: Page): Promise<void> {
           }),
         ),
       })
-    }
-
-    // ── 社区 ──
-    if (apiPath === '/community-posts') {
-      if (method === 'GET') {
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(wrap({ items: mockPosts, meta: listMeta(mockPosts.length) })),
-        })
-      }
-      if (method === 'POST') {
-        const newPost = {
-          id: `post-new-${idSeq++}`,
-          author_user_id: 'user-1',
-          title: (body?.title as string) || '新帖子',
-          content: (body?.content as string) || '',
-          cover_image_url: body?.cover_image_url ?? null,
-          status: 'published' as const,
-          like_count: 0,
-          comment_count: 0,
-          published_at: NOW,
-          created_at: NOW,
-          updated_at: NOW,
-        }
-        return route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(wrap(newPost)),
-        })
-      }
     }
 
     // ── 兜底：未匹配的 API 返回空列表 / 空对象，避免阻塞 ──

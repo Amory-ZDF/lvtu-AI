@@ -36,7 +36,6 @@ class Settings(BaseSettings):
     rate_limit_default: str = Field(default="60/minute", alias="RATE_LIMIT_DEFAULT")
     rate_limit_auth: str = Field(default="5/minute", alias="RATE_LIMIT_AUTH")
     rate_limit_ai: str = Field(default="10/minute", alias="RATE_LIMIT_AI")
-    rate_limit_post: str = Field(default="20/minute", alias="RATE_LIMIT_POST")
 
     postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")

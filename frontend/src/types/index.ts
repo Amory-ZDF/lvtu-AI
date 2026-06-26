@@ -4,7 +4,6 @@
 export * from './api'
 export * from './auth'
 export * from './trip'
-export * from './community'
 export * from './planning'
 export * from './outfit'
 export * from './spot'

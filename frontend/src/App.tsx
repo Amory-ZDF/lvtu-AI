@@ -30,7 +30,6 @@ const StartPage = lazy(() => import('@/pages/StartPage'))
 const DestinationsPage = lazy(() => import('@/pages/DestinationsPage'))
 const ComparisonPage = lazy(() => import('@/pages/ComparisonPage'))
 const TripDetailPage = lazy(() => import('@/pages/TripDetailPage'))
-const CommunityPage = lazy(() => import('@/pages/CommunityPage'))
 
 /** 路由级加载占位 */
 function RouteFallback() {
@@ -110,14 +109,6 @@ export default function App() {
               element={
                 <Suspense fallback={<RouteFallback />}>
                   <TripDetailPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/community"
-              element={
-                <Suspense fallback={<RouteFallback />}>
-                  <CommunityPage />
                 </Suspense>
               }
             />

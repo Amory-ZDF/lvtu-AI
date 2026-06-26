@@ -64,24 +64,6 @@ def upgrade() -> None:
     op.create_index(op.f("ix_trips_title"), "trips", ["title"], unique=False)
     op.create_index(op.f("ix_trips_user_id"), "trips", ["user_id"], unique=False)
 
-    op.create_table(
-        "community_posts",
-        sa.Column("author_user_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("title", sa.String(length=255), nullable=False),
-        sa.Column("content", sa.Text(), nullable=False),
-        sa.Column("cover_image_url", sa.String(length=512), nullable=True),
-        sa.Column("status", sa.String(length=32), nullable=False),
-        sa.Column("like_count", sa.Integer(), nullable=False),
-        sa.Column("comment_count", sa.Integer(), nullable=False),
-        sa.Column("published_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.ForeignKeyConstraint(["author_user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(op.f("ix_community_posts_author_user_id"), "community_posts", ["author_user_id"], unique=False)
-    op.create_index(op.f("ix_community_posts_title"), "community_posts", ["title"], unique=False)
 
     op.create_table(
         "trip_days",
@@ -145,9 +127,6 @@ def downgrade() -> None:
     op.drop_table("packing_items")
     op.drop_index(op.f("ix_trip_days_trip_id"), table_name="trip_days")
     op.drop_table("trip_days")
-    op.drop_index(op.f("ix_community_posts_title"), table_name="community_posts")
-    op.drop_index(op.f("ix_community_posts_author_user_id"), table_name="community_posts")
-    op.drop_table("community_posts")
     op.drop_index(op.f("ix_trips_user_id"), table_name="trips")
     op.drop_index(op.f("ix_trips_title"), table_name="trips")
     op.drop_table("trips")
