@@ -1,16 +1,18 @@
-"""种子数据导入脚本：将 data/ 目录下的 JSON 灌入知识库表。
+"""种子数据导入脚本：将私有数据目录下的 JSON 灌入知识库表。
 
 用法：
     cd backend
     python -m scripts.seed_knowledge              # 导入全部
     python -m scripts.seed_knowledge --reset      # 先清空再导入
     python -m scripts.seed_knowledge --only destinations  # 只导入目的地
+    LV_SEED_DATA_DIR=/path/to/seed_data python -m scripts.seed_knowledge --reset
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -24,7 +26,8 @@ from app.models.destination import Destination
 from app.models.outfit import Outfit
 from app.models.photo_spot import PhotoSpot
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "app" / "data"
+DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "app" / "data"
+DATA_DIR = Path(os.getenv("LV_SEED_DATA_DIR", DEFAULT_DATA_DIR)).expanduser()
 
 
 def _load_json(filename: str) -> list[dict]:
@@ -89,7 +92,17 @@ def main() -> None:
         choices=["destinations", "photo_spots", "outfits"],
         help="只导入指定类型",
     )
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=None,
+        help="种子数据目录；也可用 LV_SEED_DATA_DIR 指定",
+    )
     args = parser.parse_args()
+
+    global DATA_DIR
+    if args.data_dir is not None:
+        DATA_DIR = args.data_dir.expanduser()
 
     print("=" * 50)
     print("旅行知识库种子数据导入")

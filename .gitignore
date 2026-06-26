@@ -20,6 +20,9 @@ backend/.env.*
 # Local databases and coverage
 *.sqlite3
 *.db
+*.dump
+*.sql
+*.sql.gz
 .coverage
 htmlcov/
 
@@ -41,6 +44,16 @@ frontend/dist/
 pgdata/
 redisdata/
 certbot/
+
+# Private/local project data (do not publish)
+local_data/
+private_data/
+db_backups/
+backups/
+uploads/
+storage/
+chroma_db/
+backend/app/data/*.json
 
 # IDE
 .idea/
