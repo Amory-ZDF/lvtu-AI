@@ -93,6 +93,7 @@ PROJECT_CONTEXT.md
 # 采集脚本运行产物（本地数据，不推送）
 backend/test_agent_results/
 backend/raw_notes/
+backend/app/data/raw_notes/
 opencli-sandbox/
 
 # Evaluation run outputs
