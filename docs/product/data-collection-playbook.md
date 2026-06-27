@@ -183,6 +183,26 @@ raw POI
 进入私有 seed_data，再导入数据库
 ```
 
+已实现知识种子构建脚本：
+
+```bash
+cd backend
+python -m scripts.build_travel_knowledge_seeds \
+  --input /Users/zhangdifei03/Desktop/旅途重构/lv_private_data/raw/amap/poi_candidates_cn_hot_75_latest.json
+```
+
+默认输出到仓库外的私有目录：
+
+```text
+lv_private_data/processed/knowledge/pois_latest.json
+lv_private_data/processed/knowledge/photo_spots_latest.json
+lv_private_data/processed/knowledge/poi_edges_latest.json
+lv_private_data/processed/knowledge/route_templates_latest.json
+lv_private_data/processed/knowledge/coverage_report_latest.md
+```
+
+这个脚本会先过滤无经纬度点、停车场/厕所/出入口等低价值点，并剔除“拍照”关键词带来的婚纱摄影、图文广告、照相馆、快印、普通餐饮/购物商户等噪声。
+
 ## 7. 给 AI 的方式
 
 不要把原始 POI 列表直接塞给模型。
