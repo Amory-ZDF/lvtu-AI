@@ -7,6 +7,7 @@ destinations such as Kyoto or Tokyo.
 
 Examples:
     cd backend
+    python -m scripts.collect_amap_pois --city-profile cn-hot-70plus --max-cities 80
     python -m scripts.collect_amap_pois --cities 北京,上海,杭州 --limit-per-keyword 60
     python -m scripts.collect_amap_pois --cities 大理 --keywords 景点,拍照,观景台,日落
 """
@@ -26,6 +27,10 @@ import httpx
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PRIVATE_DIR = REPO_ROOT.parent / f"{REPO_ROOT.name}_private_data"
 DEFAULT_OUTPUT_DIR = DEFAULT_PRIVATE_DIR / "raw" / "amap"
+CONFIG_DIR = Path(__file__).resolve().parent / "config"
+CITY_PROFILE_FILES = {
+    "cn-hot-70plus": CONFIG_DIR / "hot_travel_cities_cn.json",
+}
 
 AMAP_PLACE_TEXT_URL = "https://restapi.amap.com/v3/place/text"
 DEFAULT_KEYWORDS = [
@@ -44,6 +49,7 @@ DEFAULT_KEYWORDS = [
     "咖啡",
     "市集",
 ]
+QPS_ERROR_MARKERS = ("CUQPS_HAS_EXCEEDED_THE_LIMIT", "10021")
 
 
 def _load_dotenv_file(path: Path) -> None:
@@ -75,6 +81,20 @@ def split_csv(value: str | None, default: list[str]) -> list[str]:
     if not value:
         return default
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def load_city_profile(profile: str | None) -> list[str]:
+    if not profile:
+        return []
+    filepath = CITY_PROFILE_FILES.get(profile)
+    if filepath is None:
+        choices = ", ".join(sorted(CITY_PROFILE_FILES))
+        raise SystemExit(f"Unknown city profile: {profile}. Available: {choices}")
+    data = json.loads(filepath.read_text(encoding="utf-8"))
+    cities = data.get("cities") or []
+    if not isinstance(cities, list) or not cities:
+        raise SystemExit(f"City profile is empty or invalid: {filepath}")
+    return [str(city).strip() for city in cities if str(city).strip()]
 
 
 def amap_get(params: dict[str, Any]) -> dict[str, Any]:
@@ -146,6 +166,48 @@ def poi_key(item: dict[str, Any]) -> str:
     )
 
 
+def build_payload(
+    *,
+    all_items: list[dict[str, Any]],
+    stats: list[dict[str, Any]],
+    cities: list[str],
+    keywords: list[str],
+    city_profile: str | None,
+    start_index: int,
+    max_cities: int | None,
+    completed_cities: list[str],
+) -> dict[str, Any]:
+    deduped: dict[str, dict[str, Any]] = {}
+    for item in all_items:
+        key = poi_key(item)
+        existing = deduped.get(key)
+        if existing is None:
+            deduped[key] = item
+        else:
+            existing_tags = set(existing.get("tags") or [])
+            existing_tags.update(item.get("tags") or [])
+            existing["tags"] = sorted(existing_tags)
+
+    return {
+        "source": "amap_place_text",
+        "collected_at": datetime.now().isoformat(),
+        "cities": cities,
+        "city_profile": city_profile,
+        "start_index": start_index,
+        "max_cities": max_cities,
+        "completed_cities": completed_cities,
+        "keywords": keywords,
+        "raw_count": len(all_items),
+        "deduped_count": len(deduped),
+        "stats": stats,
+        "items": list(deduped.values()),
+    }
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def collect_city_keyword(
     *,
     api_key: str,
@@ -153,22 +215,34 @@ def collect_city_keyword(
     keyword: str,
     limit: int,
     sleep_seconds: float,
+    retries: int,
+    qps_sleep_seconds: float,
 ) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     page = 1
     offset = 20
     while len(items) < limit:
-        data = amap_get(
-            {
-                "key": api_key,
-                "keywords": keyword,
-                "city": city,
-                "citylimit": "true",
-                "offset": offset,
-                "page": page,
-                "extensions": "all",
-            }
-        )
+        params = {
+            "key": api_key,
+            "keywords": keyword,
+            "city": city,
+            "citylimit": "true",
+            "offset": offset,
+            "page": page,
+            "extensions": "all",
+        }
+        for attempt in range(retries + 1):
+            try:
+                data = amap_get(params)
+                break
+            except Exception as exc:  # noqa: BLE001
+                message = str(exc)
+                is_qps_error = any(marker in message for marker in QPS_ERROR_MARKERS)
+                if attempt >= retries or not is_qps_error:
+                    raise
+                wait_seconds = qps_sleep_seconds * (attempt + 1)
+                print(f"  QPS limited, sleep {wait_seconds:.1f}s then retry...")
+                time.sleep(wait_seconds)
         pois = data.get("pois") or []
         if not isinstance(pois, list) or not pois:
             break
@@ -189,10 +263,25 @@ def collect_city_keyword(
 def main() -> None:
     load_local_env()
     parser = argparse.ArgumentParser(description="Collect AMap POI candidates into private data.")
-    parser.add_argument("--cities", required=True, help="Comma-separated city names or adcodes.")
+    parser.add_argument("--cities", default=None, help="Comma-separated city names or adcodes.")
+    parser.add_argument(
+        "--city-profile",
+        choices=sorted(CITY_PROFILE_FILES),
+        default=None,
+        help="Built-in city profile. Use cn-hot-70plus for domestic tourist cities.",
+    )
     parser.add_argument("--keywords", default=None, help="Comma-separated keywords.")
     parser.add_argument("--limit-per-keyword", type=int, default=80)
     parser.add_argument("--sleep", type=float, default=0.25, help="Seconds between paged requests.")
+    parser.add_argument(
+        "--qps-sleep",
+        type=float,
+        default=8.0,
+        help="Base seconds after QPS errors.",
+    )
+    parser.add_argument("--retries", type=int, default=2, help="Retries for QPS-limited requests.")
+    parser.add_argument("--start-index", type=int, default=0, help="Start city index for batching.")
+    parser.add_argument("--max-cities", type=int, default=None, help="Max cities to collect.")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args()
 
@@ -200,13 +289,22 @@ def main() -> None:
     if not api_key:
         raise SystemExit("AMAP_API_KEY is missing. Put it in backend/.env or export it locally.")
 
-    cities = split_csv(args.cities, [])
+    cities = split_csv(args.cities, []) or load_city_profile(args.city_profile)
+    if not cities:
+        raise SystemExit("Use --cities or --city-profile.")
+    if args.start_index < 0:
+        raise SystemExit("--start-index must be >= 0.")
+    cities = cities[args.start_index :]
+    if args.max_cities is not None:
+        cities = cities[: args.max_cities]
     keywords = split_csv(args.keywords, DEFAULT_KEYWORDS)
     output_dir = args.output_dir.expanduser()
     output_dir.mkdir(parents=True, exist_ok=True)
 
     all_items: list[dict[str, Any]] = []
     stats: list[dict[str, Any]] = []
+    completed_cities: list[str] = []
+    checkpoint_file = output_dir / "poi_candidates_checkpoint.json"
     for city in cities:
         for keyword in keywords:
             print(f"[collect] city={city} keyword={keyword} limit={args.limit_per_keyword}")
@@ -217,6 +315,8 @@ def main() -> None:
                     keyword=keyword,
                     limit=args.limit_per_keyword,
                     sleep_seconds=args.sleep,
+                    retries=args.retries,
+                    qps_sleep_seconds=args.qps_sleep,
                 )
             except Exception as exc:  # noqa: BLE001
                 print(f"  failed: {exc}")
@@ -226,38 +326,40 @@ def main() -> None:
             stats.append({"city": city, "keyword": keyword, "count": len(items)})
             all_items.extend(items)
             time.sleep(args.sleep)
-
-    deduped: dict[str, dict[str, Any]] = {}
-    for item in all_items:
-        key = poi_key(item)
-        existing = deduped.get(key)
-        if existing is None:
-            deduped[key] = item
-        else:
-            existing_tags = set(existing.get("tags") or [])
-            existing_tags.update(item.get("tags") or [])
-            existing["tags"] = sorted(existing_tags)
+        completed_cities.append(city)
+        checkpoint_payload = build_payload(
+            all_items=all_items,
+            stats=stats,
+            cities=cities,
+            keywords=keywords,
+            city_profile=args.city_profile,
+            start_index=args.start_index,
+            max_cities=args.max_cities,
+            completed_cities=completed_cities,
+        )
+        write_json(checkpoint_file, checkpoint_payload)
+        print(f"  checkpoint saved: {checkpoint_file.name} ({len(completed_cities)} cities)")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    payload = {
-        "source": "amap_place_text",
-        "collected_at": datetime.now().isoformat(),
-        "cities": cities,
-        "keywords": keywords,
-        "raw_count": len(all_items),
-        "deduped_count": len(deduped),
-        "stats": stats,
-        "items": list(deduped.values()),
-    }
+    payload = build_payload(
+        all_items=all_items,
+        stats=stats,
+        cities=cities,
+        keywords=keywords,
+        city_profile=args.city_profile,
+        start_index=args.start_index,
+        max_cities=args.max_cities,
+        completed_cities=completed_cities,
+    )
 
     output_file = output_dir / f"poi_candidates_{timestamp}.json"
     latest_file = output_dir / "poi_candidates_latest.json"
     for path in [output_file, latest_file]:
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        write_json(path, payload)
 
     print("=" * 60)
     print(f"raw_count={len(all_items)}")
-    print(f"deduped_count={len(deduped)}")
+    print(f"deduped_count={payload['deduped_count']}")
     print(f"output={output_file}")
     print(f"latest={latest_file}")
     print("=" * 60)

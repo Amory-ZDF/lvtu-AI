@@ -51,22 +51,24 @@
 
 ## 3. 第一阶段采集目标
 
-先做 10 个目的地，每个目的地至少收集：
+先覆盖国内 70+ 热门旅游地市/区域，每个城市至少收集：
 
 | 类型 | 数量目标 |
 |---|---:|
-| POI 候选 | 200-500 |
-| 高质量景点 | 30-50 |
-| 打卡点/机位候选 | 20-50 |
+| POI 候选 | 100-300 |
+| 高质量景点 | 20-50 |
+| 打卡点/机位候选 | 20-80 |
 | 线路模板 | 5-10 |
 | 地点组合关系 | 100-300 |
 | 穿搭规则 | 10-20 |
 
-优先城市：
+已内置城市 profile：
 
-```text
-北京 / 上海 / 杭州 / 苏州 / 厦门 / 大理 / 成都 / 重庆 / 京都 / 东京
+```bash
+python -m scripts.collect_amap_pois --city-profile cn-hot-70plus --max-cities 80
 ```
+
+`cn-hot-70plus` 实际维护 100+ 国内热门旅游地市/区域，可分批运行。
 
 ## 4. 关键词策略
 
@@ -122,8 +124,24 @@ python -m scripts.collect_amap_pois --cities 北京,上海,杭州 --limit-per-ke
 ```bash
 cd backend
 python -m scripts.collect_amap_pois \
-  --cities 北京,上海,杭州,苏州,厦门,大理,成都,重庆 \
-  --limit-per-keyword 30
+  --city-profile cn-hot-70plus \
+  --max-cities 80 \
+  --keywords 景点,风景名胜,博物馆,公园,古镇,寺庙,观景台,夜景,日落,拍照,网红打卡 \
+  --limit-per-keyword 20 \
+  --sleep 0.35
+```
+
+分批运行：
+
+```bash
+# 第 1 批：0-39
+python -m scripts.collect_amap_pois --city-profile cn-hot-70plus --start-index 0 --max-cities 40
+
+# 第 2 批：40-79
+python -m scripts.collect_amap_pois --city-profile cn-hot-70plus --start-index 40 --max-cities 40
+
+# 第 3 批：80-119
+python -m scripts.collect_amap_pois --city-profile cn-hot-70plus --start-index 80 --max-cities 40
 ```
 
 指定关键词：
@@ -187,16 +205,35 @@ LLM 输出 JSON 行程
 后端校验后入库
 ```
 
-## 8. 小红书数据如何安全利用
+## 8. 小红书/UGC 数据如何安全利用
 
-如果后续一定要参考小红书，建议只做“人工摘要层”：
+如果后续一定要参考小红书，建议只做“授权 CLI 导出 + 摘要层”：
 
 ```text
 搜索关键词：大理 拍照 机位 / 京都 红叶 路线
-人工阅读 10-20 篇
-提取自己的摘要：地点、时间、避坑、穿搭、机位角度
+人工或授权 CLI 导出 JSON
+提取自己的摘要：地点、线路、时间、避坑、穿搭、机位角度
 保存 source_url + summary + extracted_facts
 不保存原图/原文/用户信息
+```
+
+已实现标准化脚本：
+
+```bash
+cd backend
+python -m scripts.normalize_xhs_cli_export
+```
+
+默认读取：
+
+```text
+lv_private_data/raw/xiaohongshu/*.json
+```
+
+默认输出：
+
+```text
+lv_private_data/processed/xiaohongshu/travel_notes_candidates_latest.json
 ```
 
 这部分可以进入：
