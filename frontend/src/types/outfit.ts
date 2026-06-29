@@ -8,6 +8,7 @@ export interface OutfitItem {
   name: string
   category?: string
   note?: string
+  gender?: 'female' | 'male' | 'unisex' | string
 }
 
 /** 穿搭推荐 */

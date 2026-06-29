@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     ai_base_url: str | None = Field(default=None, alias="AI_BASE_URL")
     ai_api_key: str | None = Field(default=None, alias="AI_API_KEY")
     ai_model_name: str | None = Field(default=None, alias="AI_MODEL_NAME")
+    ai_image_provider: str = Field(default="mock", alias="AI_IMAGE_PROVIDER")
+    ai_image_api_key: str | None = Field(default=None, alias="AI_IMAGE_API_KEY")
+    ai_image_model_name: str | None = Field(default=None, alias="AI_IMAGE_MODEL_NAME")
 
     agent_provider: str = Field(default="mock", alias="AGENT_PROVIDER")
     agent_base_url: str | None = Field(default=None, alias="AGENT_BASE_URL")

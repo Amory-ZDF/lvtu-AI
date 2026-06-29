@@ -17,7 +17,7 @@ import { generateRoutes } from '@/services/planning'
 import { createPackingItem, createTrip, createTripDay, createTripPoint } from '@/services/trip'
 import { createSpot } from '@/services/spot'
 import { createOutfit } from '@/services/outfit'
-import { outfitPhotoUrl } from '@/utils/outfitImages'
+import { outfitPhotoUrl, type OutfitGender } from '@/utils/outfitImages'
 import type { ImageResource, RouteOption, RouteGenerationPayload, TripPoint } from '@/types'
 import type { PlanOption } from '@/data/mock'
 
@@ -104,33 +104,77 @@ async function createGeneratedTripContent(tripId: string, option: RouteOption): 
     })
   }
 
-  await Promise.all([
-    createOutfit(tripId, {
-      scene: '城市漫步 / 景点拍照',
-      season: '按出发日期复核天气',
-      style: '轻户外舒适穿搭',
+  const outfitSeeds: Array<{
+    gender: OutfitGender
+    scene: string
+    style: string
+    items: Array<{ name: string; category: string; gender: OutfitGender }>
+    tips: string
+  }> = [
+    {
+      gender: 'female',
+      scene: '女生 · 城市漫步 / 景点拍照',
+      style: '女生轻户外舒适穿搭',
       items: [
-        { name: '透气上衣', category: '上装' },
-        { name: '舒适长裤/半裙', category: '下装' },
-        { name: '防滑步行鞋', category: '鞋履' },
-        { name: '薄外套或防晒衣', category: '外套' },
+        { name: '透气短上衣或衬衫', category: '上装', gender: 'female' },
+        { name: '舒适长裤/半裙', category: '下装', gender: 'female' },
+        { name: '防滑步行鞋', category: '鞋履', gender: 'female' },
+        { name: '薄外套或防晒衣', category: '外套', gender: 'female' },
       ],
-      tips: '优先选择低饱和色，和自然/古城/海边背景更协调。',
-      images: [outfitPhotoUrl(`${tripId}-citywalk`, '城市漫步 / 景点拍照', '轻户外舒适穿搭')],
-    }),
-    createOutfit(tripId, {
-      scene: '日落 / 观景台',
-      season: '早晚温差场景',
-      style: '出片层次感穿搭',
+      tips: '女生版本优先选择低饱和色和轻量层次，兼顾走路舒适度与照片轮廓。',
+    },
+    {
+      gender: 'male',
+      scene: '男生 · 城市漫步 / 景点拍照',
+      style: '男生轻户外舒适穿搭',
       items: [
-        { name: '浅色内搭', category: '上装' },
-        { name: '有廓形的外套', category: '外套' },
-        { name: '小体积斜挎包', category: '配饰' },
+        { name: '透气 T 恤或休闲衬衫', category: '上装', gender: 'male' },
+        { name: '直筒休闲裤', category: '下装', gender: 'male' },
+        { name: '防滑步行鞋', category: '鞋履', gender: 'male' },
+        { name: '轻薄夹克或防晒外套', category: '外套', gender: 'male' },
       ],
-      tips: '日落场景建议保留外套或披肩，既防风也能增加照片层次。',
-      images: [outfitPhotoUrl(`${tripId}-sunset`, '日落 / 观景台', '出片层次感穿搭')],
-    }),
-  ])
+      tips: '男生版本强调干净线条和实穿层次，适合城市步行、景点拍照和长时间移动。',
+    },
+    {
+      gender: 'female',
+      scene: '女生 · 日落 / 观景台',
+      style: '女生出片层次感穿搭',
+      items: [
+        { name: '浅色内搭', category: '上装', gender: 'female' },
+        { name: '有廓形的外套或针织衫', category: '外套', gender: 'female' },
+        { name: '长裤/长裙', category: '下装', gender: 'female' },
+        { name: '小体积斜挎包', category: '配饰', gender: 'female' },
+      ],
+      tips: '女生版本在日落场景保留外套或披肩，既防风也能增加照片层次。',
+    },
+    {
+      gender: 'male',
+      scene: '男生 · 日落 / 观景台',
+      style: '男生出片层次感穿搭',
+      items: [
+        { name: '浅色内搭', category: '上装', gender: 'male' },
+        { name: '廓形衬衫/轻夹克', category: '外套', gender: 'male' },
+        { name: '深色直筒裤', category: '下装', gender: 'male' },
+        { name: '小背包或斜挎包', category: '配饰', gender: 'male' },
+      ],
+      tips: '男生版本在观景台和日落场景用外套制造轮廓，避免单薄、也更适合风大环境。',
+    },
+  ]
+
+  await Promise.all(
+    outfitSeeds.map((outfit) =>
+      createOutfit(tripId, {
+        scene: outfit.scene,
+        season: '按出发日期复核天气',
+        style: outfit.style,
+        items: outfit.items,
+        tips: outfit.tips,
+        images: [
+          outfitPhotoUrl(`${tripId}-${outfit.gender}-${outfit.style}`, outfit.scene, outfit.style, outfit.gender),
+        ],
+      }),
+    ),
+  )
 
   const packing = [
     ['证件', '身份证 / 护照'],

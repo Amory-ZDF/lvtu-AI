@@ -371,10 +371,19 @@
   background: oklch(0 0 0 / 0.4); backdrop-filter: blur(5px);
   color: #fff; font-size: 0.66rem; font-weight: 600;
 }
+.outfit-visual .gender-tag {
+  position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: var(--radius-full);
+  background: var(--brand); color: #fff; font-size: 0.66rem; font-weight: 700;
+}
 .outfit-visual .emoji { font-size: 3rem; filter: drop-shadow(0 3px 8px rgba(0,0,0,0.1)); }
 .outfit-body { padding: 12px 14px; }
 .outfit-body h5 { font-size: 0.84rem; margin-bottom: 2px; }
 .outfit-body p { font-size: 0.75rem; color: var(--ink-tertiary); line-height: 1.4; }
+.prompt-box {
+  padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface-subtle); color: var(--ink-secondary); font-size: 0.75rem; line-height: 1.5;
+  max-height: 160px; overflow: auto;
+}
 
 .essentials-block { margin-top: 32px; }
 .essentials-block h3 { margin-bottom: 12px; }

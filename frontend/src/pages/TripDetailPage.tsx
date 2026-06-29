@@ -35,7 +35,14 @@ import {
 import { listOutfits } from '@/services/outfit'
 import { listSpots, deleteSpot } from '@/services/spot'
 import { createAdjustment } from '@/services/adjustment'
-import { cssImageWithFallback, resolveOutfitImage } from '@/utils/outfitImages'
+import {
+  buildOutfitImagePrompt,
+  cssImageWithFallback,
+  inferOutfitGender,
+  outfitGenderLabel,
+  resolveOutfitImage,
+  type OutfitGender,
+} from '@/utils/outfitImages'
 import type {
   Trip,
   TripDay,
@@ -86,8 +93,9 @@ function formatTime(t: string | null): string {
 
 /** OutfitRecommendation → OutfitCardData */
 function toOutfitCard(o: OutfitRecommendation): OutfitCardData {
+  const gender = inferOutfitGender(o.style, o.scene, o.items)
   const fallback = pickGradient(o.id)
-  const image = resolveOutfitImage(o.images, o.id, o.scene, o.style)
+  const image = resolveOutfitImage(o.images, o.id, o.scene, o.style, gender)
   return {
     id: o.id,
     sceneTag: o.scene,
@@ -95,22 +103,52 @@ function toOutfitCard(o: OutfitRecommendation): OutfitCardData {
     title: o.style,
     desc: o.items.map((i) => i.name).join(' · '),
     gradient: cssImageWithFallback(image, fallback),
+    genderLabel: outfitGenderLabel(gender),
   }
 }
 
 /** OutfitRecommendation → OutfitDetailData */
-function toOutfitDetail(o: OutfitRecommendation): OutfitDetailData {
+function toOutfitDetail(o: OutfitRecommendation, destinationName?: string): OutfitDetailData {
+  const gender = inferOutfitGender(o.style, o.scene, o.items)
   const fallback = pickGradient(o.id)
-  const image = resolveOutfitImage(o.images, o.id, o.scene, o.style)
+  const image = resolveOutfitImage(o.images, o.id, o.scene, o.style, gender)
+  const itemNames = o.items.map((i) => i.name)
   return {
     name: o.style,
     hero: cssImageWithFallback(image, fallback),
     scene: o.scene,
     weather: o.season,
-    items: o.items.map((i) => i.name),
+    items: itemNames,
     reason: o.tips || o.items.map((i) => i.name).join('、'),
     spotId: null,
+    genderLabel: outfitGenderLabel(gender),
+    aiPrompt: buildOutfitImagePrompt({
+      destinationName,
+      gender,
+      scene: o.scene,
+      season: o.season,
+      style: o.style,
+      items: itemNames,
+    }),
   }
+}
+
+function groupOutfits(outfits: OutfitRecommendation[]) {
+  const groups: Record<OutfitGender, OutfitRecommendation[]> = {
+    female: [],
+    male: [],
+    unisex: [],
+  }
+  for (const outfit of outfits) {
+    groups[inferOutfitGender(outfit.style, outfit.scene, outfit.items)].push(outfit)
+  }
+  return (['female', 'male', 'unisex'] as OutfitGender[])
+    .map((gender) => ({
+      gender,
+      label: outfitGenderLabel(gender),
+      items: groups[gender],
+    }))
+    .filter((group) => group.items.length > 0)
 }
 
 /** PhotoSpotRecommendation → SpotCardData */
@@ -948,33 +986,38 @@ export function TripDetailPage() {
           {outfits.length === 0 ? (
             <EmptyState icon="👗" title="暂无穿搭推荐" description="AI 将根据行程自动生成穿搭建议" />
           ) : (
-            <div className="outfit-day">
-              <h3>
-                <span className="day-badge d1">穿搭</span>
-                共 {outfits.length} 套推荐
-              </h3>
-              <div className="outfit-cards">
-                {outfits.map((o) => {
-                  const card = toOutfitCard(o)
-                  return (
-                    <div
-                      key={o.id}
-                      className="outfit-card"
-                      onClick={() => openOutfitDetail(o.id)}
-                    >
-                      <div className="outfit-visual" style={{ backgroundImage: card.gradient }}>
-                        <span className="scene-tag">{card.sceneTag}</span>
-                        {card.emoji && <span className="emoji">{card.emoji}</span>}
-                      </div>
-                      <div className="outfit-body">
-                        <h5>{card.title}</h5>
-                        <p>{card.desc}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+            <>
+              {groupOutfits(outfits).map((group) => (
+                <div className="outfit-day" key={group.gender}>
+                  <h3>
+                    <span className="day-badge d1">{group.label}</span>
+                    共 {group.items.length} 套推荐
+                  </h3>
+                  <div className="outfit-cards">
+                    {group.items.map((o) => {
+                      const card = toOutfitCard(o)
+                      return (
+                        <div
+                          key={o.id}
+                          className="outfit-card"
+                          onClick={() => openOutfitDetail(o.id)}
+                        >
+                          <div className="outfit-visual" style={{ backgroundImage: card.gradient }}>
+                            <span className="scene-tag">{card.sceneTag}</span>
+                            {card.genderLabel && <span className="gender-tag">{card.genderLabel}</span>}
+                            {card.emoji && <span className="emoji">{card.emoji}</span>}
+                          </div>
+                          <div className="outfit-body">
+                            <h5>{card.title}</h5>
+                            <p>{card.desc}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </>
           )}
         </div>
       )}
@@ -1149,7 +1192,7 @@ export function TripDetailPage() {
       )}
       {detailType === 'outfit' && detailId && currentOutfit && (
         <OutfitDetail
-          data={toOutfitDetail(currentOutfit)}
+          data={toOutfitDetail(currentOutfit, trip?.destination_name)}
           onClose={closeDetail}
         />
       )}

@@ -60,6 +60,7 @@ export interface OutfitCardData {
   title: string
   desc: string
   gradient: string
+  genderLabel?: string
 }
 
 export interface OutfitDayData {
@@ -110,6 +111,8 @@ export interface OutfitDetailData {
   items: string[]
   reason: string
   spotId: string | null
+  aiPrompt?: string
+  genderLabel?: string
 }
 
 /** 打包清单 */
