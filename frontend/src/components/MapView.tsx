@@ -174,25 +174,84 @@ export function MapView({ points, center, height = 360 }: MapViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points])
 
-  if (status === 'no-key') {
+  const fallbackPoints = points
+    .filter((p) => typeof p.latitude === 'number' && typeof p.longitude === 'number')
+    .slice(0, 6)
+
+  if (status === 'no-key' || status === 'error') {
     return (
       <div
         style={{
           height,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: 'stretch',
+          justifyContent: 'space-between',
           flexDirection: 'column',
-          gap: '8px',
+          gap: '14px',
           borderRadius: '12px',
           border: '1px solid var(--border)',
-          background: 'var(--surface-2)',
-          color: 'var(--ink-tertiary)',
+          background: 'linear-gradient(135deg, var(--surface-elevated), var(--surface-subtle))',
+          color: 'var(--ink-secondary)',
+          padding: '18px',
         }}
       >
-        <span style={{ fontSize: '2rem' }}>🗺️</span>
-        <span style={{ fontSize: '0.88rem' }}>地图需配置高德 SDK Key</span>
-        <span style={{ fontSize: '0.75rem' }}>请在 .env 中设置 VITE_AMAP_KEY</span>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span style={{ fontSize: '1.4rem' }}>🗺️</span>
+            <strong style={{ color: 'var(--ink)', fontSize: '0.95rem' }}>
+              {status === 'no-key' ? '地图服务待启用' : '地图加载失败'}
+            </strong>
+          </div>
+          <p style={{ fontSize: '0.78rem', lineHeight: 1.5, margin: 0 }}>
+            {status === 'no-key'
+              ? '当前本地环境未配置 VITE_AMAP_KEY，因此先展示路线点位清单；配置高德 Web JS Key 后会自动切换为交互地图。'
+              : '暂时无法加载交互地图，你仍可先按下方点位核对路线。'}
+          </p>
+        </div>
+        {fallbackPoints.length > 0 && (
+          <div style={{ display: 'grid', gap: '8px', overflow: 'auto' }}>
+            {fallbackPoints.map((p, index) => (
+              <div
+                key={`${p.name}-${p.latitude}-${p.longitude}`}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '28px 1fr',
+                  gap: '10px',
+                  alignItems: 'center',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <span
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '999px',
+                    background: 'var(--brand)',
+                    color: '#fff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {index + 1}
+                </span>
+                <div>
+                  <div style={{ color: 'var(--ink)', fontWeight: 700, fontSize: '0.82rem' }}>
+                    {p.name}
+                  </div>
+                  <div style={{ color: 'var(--ink-tertiary)', fontSize: '0.7rem' }}>
+                    {p.latitude.toFixed(5)}, {p.longitude.toFixed(5)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     )
   }

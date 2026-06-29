@@ -15,7 +15,10 @@ export function OutfitDetail({ data, onClose, onViewSpot }: OutfitDetailProps) {
     <div className="detail-overlay show" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="detail-panel" onClick={(e) => e.stopPropagation()}>
         <button className="dp-close" onClick={onClose}>×</button>
-        <div className="dp-hero-img" style={{ backgroundImage: data.hero }}></div>
+        <div
+          className="dp-hero-img"
+          style={{ backgroundImage: data.hero, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        ></div>
         <div className="dp-content">
           <h2>{data.name}</h2>
           <p className="dp-subtitle">🎬 {data.scene} · {data.weather}</p>

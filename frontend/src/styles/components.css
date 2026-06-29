@@ -362,7 +362,10 @@
   border-radius: var(--radius-lg); overflow: hidden; transition: all 0.15s; cursor: pointer;
 }
 .outfit-card:hover { border-color: var(--brand); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
-.outfit-visual { height: 140px; display: flex; align-items: flex-end; justify-content: center; padding: 14px; position: relative; }
+.outfit-visual {
+  height: 140px; display: flex; align-items: flex-end; justify-content: center; padding: 14px; position: relative;
+  background-size: cover; background-position: center;
+}
 .outfit-visual .scene-tag {
   position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: var(--radius-full);
   background: oklch(0 0 0 / 0.4); backdrop-filter: blur(5px);

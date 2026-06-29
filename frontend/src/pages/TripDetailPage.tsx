@@ -35,6 +35,7 @@ import {
 import { listOutfits } from '@/services/outfit'
 import { listSpots, deleteSpot } from '@/services/spot'
 import { createAdjustment } from '@/services/adjustment'
+import { cssImageWithFallback, resolveOutfitImage } from '@/utils/outfitImages'
 import type {
   Trip,
   TripDay,
@@ -85,21 +86,25 @@ function formatTime(t: string | null): string {
 
 /** OutfitRecommendation → OutfitCardData */
 function toOutfitCard(o: OutfitRecommendation): OutfitCardData {
+  const fallback = pickGradient(o.id)
+  const image = resolveOutfitImage(o.images, o.id, o.scene, o.style)
   return {
     id: o.id,
     sceneTag: o.scene,
-    emoji: '👗',
+    emoji: '',
     title: o.style,
     desc: o.items.map((i) => i.name).join(' · '),
-    gradient: o.images[0] ? `url(${o.images[0]})` : pickGradient(o.id),
+    gradient: cssImageWithFallback(image, fallback),
   }
 }
 
 /** OutfitRecommendation → OutfitDetailData */
 function toOutfitDetail(o: OutfitRecommendation): OutfitDetailData {
+  const fallback = pickGradient(o.id)
+  const image = resolveOutfitImage(o.images, o.id, o.scene, o.style)
   return {
     name: o.style,
-    hero: o.images[0] ? `url(${o.images[0]})` : pickGradient(o.id),
+    hero: cssImageWithFallback(image, fallback),
     scene: o.scene,
     weather: o.season,
     items: o.items.map((i) => i.name),
@@ -957,9 +962,9 @@ export function TripDetailPage() {
                       className="outfit-card"
                       onClick={() => openOutfitDetail(o.id)}
                     >
-                      <div className="outfit-visual" style={{ background: card.gradient }}>
+                      <div className="outfit-visual" style={{ backgroundImage: card.gradient }}>
                         <span className="scene-tag">{card.sceneTag}</span>
-                        <span className="emoji">{card.emoji}</span>
+                        {card.emoji && <span className="emoji">{card.emoji}</span>}
                       </div>
                       <div className="outfit-body">
                         <h5>{card.title}</h5>

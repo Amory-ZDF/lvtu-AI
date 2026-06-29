@@ -17,6 +17,7 @@ import { generateRoutes } from '@/services/planning'
 import { createPackingItem, createTrip, createTripDay, createTripPoint } from '@/services/trip'
 import { createSpot } from '@/services/spot'
 import { createOutfit } from '@/services/outfit'
+import { outfitPhotoUrl } from '@/utils/outfitImages'
 import type { ImageResource, RouteOption, RouteGenerationPayload, TripPoint } from '@/types'
 import type { PlanOption } from '@/data/mock'
 
@@ -53,11 +54,6 @@ function toPlanOption(option: RouteOption, index: number): PlanOption {
 
 function imageUrl(images: ImageResource[] | undefined): string | null {
   return images?.find((img) => !img.placeholder)?.url || images?.[0]?.url || null
-}
-
-function localCardUrl(title: string, subtitle: string, category: string): string {
-  const params = new URLSearchParams({ title, subtitle, category })
-  return `/api/v1/media/place-card.svg?${params.toString()}`
 }
 
 function toTime(value: string | null | undefined, fallback: string): string {
@@ -120,7 +116,7 @@ async function createGeneratedTripContent(tripId: string, option: RouteOption): 
         { name: '薄外套或防晒衣', category: '外套' },
       ],
       tips: '优先选择低饱和色，和自然/古城/海边背景更协调。',
-      images: [localCardUrl(option.title, '穿搭建议', 'outfit')],
+      images: [outfitPhotoUrl(`${tripId}-citywalk`, '城市漫步 / 景点拍照', '轻户外舒适穿搭')],
     }),
     createOutfit(tripId, {
       scene: '日落 / 观景台',
@@ -132,7 +128,7 @@ async function createGeneratedTripContent(tripId: string, option: RouteOption): 
         { name: '小体积斜挎包', category: '配饰' },
       ],
       tips: '日落场景建议保留外套或披肩，既防风也能增加照片层次。',
-      images: [localCardUrl(option.title, '日落机位穿搭', 'outfit')],
+      images: [outfitPhotoUrl(`${tripId}-sunset`, '日落 / 观景台', '出片层次感穿搭')],
     }),
   ])
 
