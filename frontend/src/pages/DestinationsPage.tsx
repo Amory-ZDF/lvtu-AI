@@ -10,10 +10,8 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
 import { useUIStore } from '@/store/uiStore'
-import { useAuthStore } from '@/store/authStore'
 import { useTripStore } from '@/store/tripStore'
 import { recommendDestinations } from '@/services/planning'
-import { createTrip } from '@/services/trip'
 import type { DestinationItem, DestinationRecommendationPayload } from '@/types'
 import type { DestinationPreview } from '@/data/mock'
 
@@ -57,8 +55,6 @@ function toPreview(item: DestinationItem, index: number): DestinationPreview {
 export function DestinationsPage() {
   const navigate = useNavigate()
   const showToast = useUIStore((s) => s.showToast)
-  const user = useAuthStore((s) => s.user)
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const destinations = useTripStore((s) => s.destinations)
   const setDestinations = useTripStore((s) => s.setDestinations)
   const lastRecommendRequest = useTripStore((s) => s.lastRecommendRequest)
@@ -95,26 +91,9 @@ export function DestinationsPage() {
     })
   }
 
-  const handleGenerate = async (id: string) => {
-    if (!isAuthenticated || !user) {
-      showToast('请先登录后再创建行程')
-      navigate('/login?redirect=/destinations')
-      return
-    }
-    const item = destinations?.destinations.find((d) => d.id === id)
-    if (!item) return
-    showToast('正在创建行程...')
-    try {
-      const trip = await createTrip(user.id, {
-        title: item.name,
-        destination_name: item.name,
-        status: 'draft',
-      })
-      showToast('行程已创建')
-      navigate(`/trips/${trip.id}`)
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : '创建行程失败')
-    }
+  const handleGenerate = (id: string) => {
+    showToast('先生成真实路线方案，再创建完整行程')
+    handleCompare(id)
   }
 
   const handleRefresh = () => {

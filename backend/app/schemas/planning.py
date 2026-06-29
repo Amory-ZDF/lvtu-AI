@@ -52,6 +52,10 @@ class RouteSpot(BaseModel):
     name: str
     description: str
     suggested_duration_hours: float
+    category: str | None = None
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     images: list[ImageResource]
 
 

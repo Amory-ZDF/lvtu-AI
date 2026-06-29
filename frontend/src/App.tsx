@@ -22,6 +22,8 @@ import ToastContainer from '@/components/Toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useUIStore } from '@/store/uiStore'
+import { useAuthStore } from '@/store/authStore'
+import { getMe } from '@/services/auth'
 // 首屏优先：HomePage / LoginPage 保持同步加载
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
@@ -38,6 +40,30 @@ function RouteFallback() {
       <LoadingSpinner label="加载中..." />
     </div>
   )
+}
+
+function AuthBootstrap() {
+  const user = useAuthStore((s) => s.user)
+  const token = useAuthStore((s) => s.token)
+  const setUser = useAuthStore((s) => s.setUser)
+  const logout = useAuthStore((s) => s.logout)
+
+  useEffect(() => {
+    if (!token || user) return
+    let cancelled = false
+    getMe()
+      .then((profile) => {
+        if (!cancelled) setUser(profile)
+      })
+      .catch(() => {
+        if (!cancelled) logout()
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [logout, setUser, token, user])
+
+  return null
 }
 
 /** 主布局：侧边栏 + 移动端顶栏 + 内容区 */
@@ -73,6 +99,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <AuthBootstrap />
         <ToastContainer />
         <Routes>
           {/* 登录页独立于主布局 */}

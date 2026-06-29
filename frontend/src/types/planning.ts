@@ -60,6 +60,10 @@ export interface RouteSpot {
   name: string
   description: string
   suggested_duration_hours: number
+  category?: string | null
+  address?: string | null
+  latitude?: number | null
+  longitude?: number | null
   images: ImageResource[]
 }
 

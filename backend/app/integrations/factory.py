@@ -34,6 +34,11 @@ def get_recommender_integration(settings: Settings) -> RecommenderIntegration:
     if settings.ai_provider == "mock":
         return MockRecommendationIntegration()
 
+    if settings.ai_provider in {"knowledge", "local"}:
+        from app.integrations.knowledge import KnowledgeRecommendationIntegration
+
+        return KnowledgeRecommendationIntegration(settings.knowledge_data_dir)
+
     if not settings.ai_api_key:
         logger.warning("AI_API_KEY not configured, falling back to mock")
         return MockRecommendationIntegration()
@@ -64,6 +69,11 @@ def get_route_planner_integration(settings: Settings) -> RoutePlannerIntegration
     if settings.agent_provider == "mock":
         return MockRoutePlannerIntegration()
 
+    if settings.agent_provider in {"knowledge", "local"}:
+        from app.integrations.knowledge import KnowledgeRoutePlannerIntegration
+
+        return KnowledgeRoutePlannerIntegration(settings.knowledge_data_dir)
+
     if not settings.agent_api_key:
         logger.warning("AGENT_API_KEY not configured, falling back to mock")
         return MockRoutePlannerIntegration()
@@ -85,5 +95,9 @@ def get_route_planner_integration(settings: Settings) -> RoutePlannerIntegration
 
 
 def get_media_asset_integration(settings: Settings) -> MediaAssetIntegration:
-    """返回媒体资产集成实例（当前始终返回 mock）。"""
+    """返回媒体资产集成实例。"""
+    if getattr(settings, "media_provider", "mock") in {"local", "knowledge"}:
+        from app.integrations.knowledge import LocalMediaAssetIntegration
+
+        return LocalMediaAssetIntegration()
     return MockMediaAssetIntegration()

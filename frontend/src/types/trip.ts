@@ -81,8 +81,8 @@ export interface TripPoint {
   name: string
   point_type: TripPointType
   address: string | null
-  latitude: number | null
-  longitude: number | null
+  latitude: number | string | null
+  longitude: number | string | null
   start_time: string | null
   end_time: string | null
   sort_order: number

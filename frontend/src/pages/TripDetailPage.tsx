@@ -570,8 +570,10 @@ export function TripDetailPage() {
     const result: MapPoint[] = []
     for (const pts of Object.values(pointsByDay)) {
       for (const p of pts) {
-        if (typeof p.latitude === 'number' && typeof p.longitude === 'number') {
-          result.push({ name: p.name, latitude: p.latitude, longitude: p.longitude })
+        const latitude = typeof p.latitude === 'number' ? p.latitude : Number(p.latitude)
+        const longitude = typeof p.longitude === 'number' ? p.longitude : Number(p.longitude)
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          result.push({ name: p.name, latitude, longitude })
         }
       }
     }

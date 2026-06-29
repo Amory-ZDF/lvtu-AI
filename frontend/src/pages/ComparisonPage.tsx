@@ -14,8 +14,10 @@ import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useTripStore } from '@/store/tripStore'
 import { generateRoutes } from '@/services/planning'
-import { createTrip } from '@/services/trip'
-import type { RouteOption, RouteGenerationPayload } from '@/types'
+import { createPackingItem, createTrip, createTripDay, createTripPoint } from '@/services/trip'
+import { createSpot } from '@/services/spot'
+import { createOutfit } from '@/services/outfit'
+import type { ImageResource, RouteOption, RouteGenerationPayload, TripPoint } from '@/types'
 import type { PlanOption } from '@/data/mock'
 
 /** 路由 state 结构 */
@@ -49,11 +51,111 @@ function toPlanOption(option: RouteOption, index: number): PlanOption {
   }
 }
 
+function imageUrl(images: ImageResource[] | undefined): string | null {
+  return images?.find((img) => !img.placeholder)?.url || images?.[0]?.url || null
+}
+
+function localCardUrl(title: string, subtitle: string, category: string): string {
+  const params = new URLSearchParams({ title, subtitle, category })
+  return `/api/v1/media/place-card.svg?${params.toString()}`
+}
+
+function toTime(value: string | null | undefined, fallback: string): string {
+  if (!value) return fallback
+  return /^\d{2}:\d{2}$/.test(value) ? value : fallback
+}
+
+async function createGeneratedTripContent(tripId: string, option: RouteOption): Promise<void> {
+  const createdPoints: TripPoint[] = []
+  for (const day of option.days) {
+    const tripDay = await createTripDay(tripId, {
+      day_index: day.day,
+      title: day.theme,
+      summary: day.commute_tip,
+    })
+    for (const [index, spot] of day.spots.entries()) {
+      const point = await createTripPoint(tripDay.id, {
+        name: spot.name,
+        point_type: 'spot',
+        address: spot.address || null,
+        latitude: spot.latitude ?? null,
+        longitude: spot.longitude ?? null,
+        start_time: toTime(spot.time_slot, ['09:00', '11:30', '14:30', '17:00'][index] || '09:00'),
+        sort_order: index + 1,
+        notes: spot.description,
+        image_url: imageUrl(spot.images),
+      })
+      createdPoints.push(point)
+    }
+  }
+
+  const photoCandidates = option.days
+    .flatMap((day) => day.spots)
+    .filter((spot) => /拍照|机位|观景|日落|海|山|公园|景区/.test(`${spot.name}${spot.description}`))
+    .slice(0, 5)
+
+  for (const [index, spot] of photoCandidates.entries()) {
+    const linkedPoint = createdPoints.find((point) => point.name === spot.name)
+    await createSpot(tripId, {
+      trip_point_id: linkedPoint?.id || null,
+      name: spot.name,
+      location: spot.description.split('；')[0] || spot.name,
+      composition: index % 2 === 0 ? '优先使用广角横构图，保留前景和远景层次。' : '建议人物站在画面三分线位置，避开正午强光。',
+      best_time: spot.time_slot,
+      photo_score: Math.round(option.photo_score * 10),
+      tips: '到达前用地图复核开放时间和实时人流。',
+      images: imageUrl(spot.images) ? [imageUrl(spot.images)!] : [],
+    })
+  }
+
+  await Promise.all([
+    createOutfit(tripId, {
+      scene: '城市漫步 / 景点拍照',
+      season: '按出发日期复核天气',
+      style: '轻户外舒适穿搭',
+      items: [
+        { name: '透气上衣', category: '上装' },
+        { name: '舒适长裤/半裙', category: '下装' },
+        { name: '防滑步行鞋', category: '鞋履' },
+        { name: '薄外套或防晒衣', category: '外套' },
+      ],
+      tips: '优先选择低饱和色，和自然/古城/海边背景更协调。',
+      images: [localCardUrl(option.title, '穿搭建议', 'outfit')],
+    }),
+    createOutfit(tripId, {
+      scene: '日落 / 观景台',
+      season: '早晚温差场景',
+      style: '出片层次感穿搭',
+      items: [
+        { name: '浅色内搭', category: '上装' },
+        { name: '有廓形的外套', category: '外套' },
+        { name: '小体积斜挎包', category: '配饰' },
+      ],
+      tips: '日落场景建议保留外套或披肩，既防风也能增加照片层次。',
+      images: [localCardUrl(option.title, '日落机位穿搭', 'outfit')],
+    }),
+  ])
+
+  const packing = [
+    ['证件', '身份证 / 护照'],
+    ['电子设备', '充电器和充电宝'],
+    ['拍照', '手机支架或小型三脚架'],
+    ['拍照', '备用存储空间'],
+    ['衣物', '舒适步行鞋'],
+    ['护理', '防晒用品'],
+    ['药品', '常用药'],
+  ]
+  await Promise.all(
+    packing.map(([category, name]) => createPackingItem(tripId, { category, name })),
+  )
+}
+
 export function ComparisonPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const showToast = useUIStore((s) => s.showToast)
   const user = useAuthStore((s) => s.user)
+  const token = useAuthStore((s) => s.token)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const routeOptions = useTripStore((s) => s.routeOptions)
   const setRouteOptions = useTripStore((s) => s.setRouteOptions)
@@ -90,6 +192,10 @@ export function ComparisonPage() {
     (routeOptions as RouteGenerationPayload | null)?.options?.map((o, i) => toPlanOption(o, i)) || []
 
   const handleSelectPlan = async () => {
+    if (isAuthenticated && token && !user) {
+      showToast('登录态恢复中，请稍后再试')
+      return
+    }
     if (!isAuthenticated || !user) {
       showToast('请先登录后再创建行程')
       navigate('/login?redirect=/comparison')
@@ -99,13 +205,17 @@ export function ComparisonPage() {
     if (!selectedOption) return
     setCreating(true)
     try {
+      const cover = imageUrl(selectedOption.days[0]?.spots[0]?.images)
       const trip = await createTrip(user.id, {
         title: `${destinationName} · ${selectedOption.title}`,
         destination_name: destinationName,
         status: 'draft',
+        cover_image_url: cover,
         notes: selectedOption.summary,
       })
-      showToast('行程已创建')
+      showToast('行程已创建，正在写入每日安排...')
+      await createGeneratedTripContent(trip.id, selectedOption)
+      showToast('完整行程、机位、穿搭和打包清单已生成')
       navigate(`/trips/${trip.id}`)
     } catch (err) {
       showToast(err instanceof Error ? err.message : '创建行程失败')

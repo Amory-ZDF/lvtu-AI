@@ -7,3 +7,6 @@
 import os
 
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+os.environ.setdefault("AI_PROVIDER", "mock")
+os.environ.setdefault("AGENT_PROVIDER", "mock")
+os.environ.setdefault("MEDIA_PROVIDER", "mock")

@@ -59,7 +59,7 @@ export function DestinationCard({ destination, onCompare, onGenerate }: Destinat
             📊 查看方案对比
           </button>
           <button className="btn btn-outline" onClick={() => onGenerate?.(destination.id)}>
-            ✨ 直接生成行程
+            ✨ 生成路线方案
           </button>
         </div>
       </div>
