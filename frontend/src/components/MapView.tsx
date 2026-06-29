@@ -33,11 +33,14 @@ interface AMapConstructor {
 }
 interface AMapGlobal {
   AMap: AMapConstructor
+  _AMapSecurityConfig?: {
+    securityJsCode?: string
+  }
 }
 
 /** 动态加载高德 SDK（带去重） */
 let amapLoader: Promise<AMapConstructor | null> | null = null
-function loadAmap(key: string): Promise<AMapConstructor | null> {
+function loadAmap(key: string, securityJsCode?: string): Promise<AMapConstructor | null> {
   if (amapLoader) return amapLoader
   amapLoader = new Promise((resolve) => {
     const existing = document.querySelector<HTMLScriptElement>(
@@ -58,6 +61,10 @@ function loadAmap(key: string): Promise<AMapConstructor | null> {
         }
       }, 100)
       return
+    }
+    if (securityJsCode) {
+      const g = window as unknown as Partial<AMapGlobal>
+      g._AMapSecurityConfig = { securityJsCode }
     }
     const script = document.createElement('script')
     script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(key)}`
@@ -82,6 +89,7 @@ export function MapView({ points, center, height = 360 }: MapViewProps) {
   )
 
   const key = import.meta.env.VITE_AMAP_KEY
+  const securityJsCode = import.meta.env.VITE_AMAP_SECURITY_JS_CODE
 
   useEffect(() => {
     if (!key) {
@@ -90,7 +98,7 @@ export function MapView({ points, center, height = 360 }: MapViewProps) {
     }
     let cancelled = false
 
-    void loadAmap(key).then((AMap) => {
+    void loadAmap(key, securityJsCode).then((AMap) => {
       if (cancelled || !AMap || !containerRef.current) {
         if (!cancelled) setStatus(AMap ? 'error' : 'no-key')
         return
