@@ -3,7 +3,7 @@
  * 从 tripStore 读取推荐结果，若无则用默认参数重新请求
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DestinationCard } from '@/components/DestinationCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -23,6 +23,8 @@ const GRADIENTS = [
   'linear-gradient(135deg,oklch(0.56 0.16 215),oklch(0.48 0.14 235))',
   'linear-gradient(135deg,oklch(0.60 0.15 340),oklch(0.52 0.16 5))',
 ]
+
+const DESTINATION_BATCH_SIZE = 3
 
 function pickGradient(id: string): string {
   let hash = 0
@@ -52,6 +54,14 @@ function toPreview(item: DestinationItem, index: number): DestinationPreview {
   }
 }
 
+function destinationBatch(items: DestinationItem[], batchIndex: number): DestinationItem[] {
+  if (items.length <= DESTINATION_BATCH_SIZE) return items
+  const start = (batchIndex * DESTINATION_BATCH_SIZE) % items.length
+  const batch = items.slice(start, start + DESTINATION_BATCH_SIZE)
+  if (batch.length === DESTINATION_BATCH_SIZE) return batch
+  return [...batch, ...items.slice(0, DESTINATION_BATCH_SIZE - batch.length)]
+}
+
 export function DestinationsPage() {
   const navigate = useNavigate()
   const showToast = useUIStore((s) => s.showToast)
@@ -61,6 +71,7 @@ export function DestinationsPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [batchIndex, setBatchIndex] = useState(0)
 
   /** 用默认参数请求推荐 */
   const fetchDefault = () => {
@@ -84,6 +95,10 @@ export function DestinationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    setBatchIndex(0)
+  }, [destinations])
+
   const handleCompare = (id: string) => {
     const item = destinations?.destinations.find((d) => d.id === id)
     navigate('/comparison', {
@@ -97,20 +112,30 @@ export function DestinationsPage() {
   }
 
   const handleRefresh = () => {
+    const allDestinations = destinations?.destinations || []
+    if (allDestinations.length > DESTINATION_BATCH_SIZE) {
+      const totalBatches = Math.ceil(allDestinations.length / DESTINATION_BATCH_SIZE)
+      setBatchIndex((current) => (current + 1) % totalBatches)
+      showToast('已换一批目的地')
+      return
+    }
     fetchDefault()
-    showToast('正在换一批...')
+    showToast('正在重新匹配目的地...')
   }
 
-  const items: DestinationPreview[] = (destinations as DestinationRecommendationPayload | null)?.destinations?.map(
-    (d, i) => toPreview(d, i),
-  ) || []
+  const allDestinationItems =
+    (destinations as DestinationRecommendationPayload | null)?.destinations || []
+  const items: DestinationPreview[] = useMemo(
+    () => destinationBatch(allDestinationItems, batchIndex).map((d, i) => toPreview(d, i)),
+    [allDestinationItems, batchIndex],
+  )
 
   return (
     <div className="page">
       <button className="back-link" onClick={() => navigate('/start')}>
         ← 返回修改偏好
       </button>
-      <h2>为你找到 {items.length} 个目的地</h2>
+      <h2>为你推荐 {items.length} 个目的地</h2>
       <p className="hint" style={{ marginBottom: '20px' }}>
         {destinations?.query_summary || '基于你的偏好生成'}
       </p>

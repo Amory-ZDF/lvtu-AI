@@ -71,6 +71,7 @@ class Settings(BaseSettings):
         default=None,
         alias="MEDIA_PLACEHOLDER_IMAGE_URL",
     )
+    media_real_images_enabled: bool = Field(default=True, alias="MEDIA_REAL_IMAGES_ENABLED")
     knowledge_data_dir: str | None = Field(default=None, alias="LV_KNOWLEDGE_DATA_DIR")
 
     ai_quota_daily_limit: int = Field(default=50, alias="AI_QUOTA_DAILY_LIMIT")

@@ -11,6 +11,9 @@ export interface ImageResource {
   alt: string
   provider: string
   placeholder: boolean
+  source_url?: string | null
+  license?: string | null
+  credit?: string | null
 }
 
 /** 目的地推荐请求 */

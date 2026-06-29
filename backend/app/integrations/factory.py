@@ -37,7 +37,10 @@ def get_recommender_integration(settings: Settings) -> RecommenderIntegration:
     if settings.ai_provider in {"knowledge", "local"}:
         from app.integrations.knowledge import KnowledgeRecommendationIntegration
 
-        return KnowledgeRecommendationIntegration(settings.knowledge_data_dir)
+        return KnowledgeRecommendationIntegration(
+            settings.knowledge_data_dir,
+            real_images_enabled=settings.media_real_images_enabled,
+        )
 
     if not settings.ai_api_key:
         logger.warning("AI_API_KEY not configured, falling back to mock")
@@ -72,7 +75,10 @@ def get_route_planner_integration(settings: Settings) -> RoutePlannerIntegration
     if settings.agent_provider in {"knowledge", "local"}:
         from app.integrations.knowledge import KnowledgeRoutePlannerIntegration
 
-        return KnowledgeRoutePlannerIntegration(settings.knowledge_data_dir)
+        return KnowledgeRoutePlannerIntegration(
+            settings.knowledge_data_dir,
+            real_images_enabled=settings.media_real_images_enabled,
+        )
 
     if not settings.agent_api_key:
         logger.warning("AGENT_API_KEY not configured, falling back to mock")

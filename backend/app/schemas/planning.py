@@ -8,6 +8,9 @@ class ImageResource(BaseModel):
     alt: str
     provider: str
     placeholder: bool = True
+    source_url: str | None = None
+    license: str | None = None
+    credit: str | None = None
 
 
 class DestinationRecommendationRequest(BaseModel):

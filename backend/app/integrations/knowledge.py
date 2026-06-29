@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
+from app.integrations.media_images import ImageLookup, WikimediaImageLookup
 from app.schemas.planning import (
     DestinationItem,
     DestinationRecommendationPayload,
@@ -64,6 +65,7 @@ TIME_SLOTS = {
     "balanced": ["09:00", "11:30", "14:30", "17:00"],
     "compact": ["08:30", "10:30", "13:30", "16:30"],
 }
+ROUTE_REAL_IMAGE_LIMIT = 12
 
 
 def _load_items(path: Path) -> list[dict[str, Any]]:
@@ -140,6 +142,35 @@ def _image_resource(
         alt=f"{title} - {subtitle}",
         provider="lv-local-card",
         placeholder=False,
+    )
+
+
+def _real_or_card_image_resource(
+    *,
+    image_lookup: ImageLookup | None,
+    query: str,
+    category: str,
+    title: str,
+    subtitle: str,
+    tags: list[str] | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> ImageResource:
+    if image_lookup:
+        image = image_lookup.find(
+            query=query,
+            category=category,
+            alt=f"{title} - {subtitle}",
+        )
+        if image:
+            return image
+    return _image_resource(
+        category=category,
+        title=title,
+        subtitle=subtitle,
+        tags=tags,
+        latitude=latitude,
+        longitude=longitude,
     )
 
 
@@ -255,8 +286,18 @@ class KnowledgeStore:
 
 
 class KnowledgeRecommendationIntegration:
-    def __init__(self, data_dir: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        data_dir: str | Path | None = None,
+        *,
+        real_images_enabled: bool = False,
+        image_lookup: ImageLookup | None = None,
+    ) -> None:
         self.store = KnowledgeStore(data_dir)
+        self.image_lookup = image_lookup or (
+            WikimediaImageLookup() if real_images_enabled else None
+        )
+        self._remaining_route_real_images = ROUTE_REAL_IMAGE_LIMIT
 
     def recommend(
         self,
@@ -346,7 +387,9 @@ class KnowledgeRecommendationIntegration:
             f"代表点：{'、'.join(top_names)}",
             f"适合 {request.duration_days} 天做 {'/'.join(tags[:3])} 主题组合",
         ]
-        hero = _image_resource(
+        hero = _real_or_card_image_resource(
+            image_lookup=self.image_lookup,
+            query=summary.name,
             category="destination",
             title=summary.name,
             subtitle=f"{summary.province} · {summary.poi_count} POI · {photo_text}",
@@ -380,8 +423,17 @@ class KnowledgeRecommendationIntegration:
 
 
 class KnowledgeRoutePlannerIntegration:
-    def __init__(self, data_dir: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        data_dir: str | Path | None = None,
+        *,
+        real_images_enabled: bool = False,
+        image_lookup: ImageLookup | None = None,
+    ) -> None:
         self.store = KnowledgeStore(data_dir)
+        self.image_lookup = image_lookup or (
+            WikimediaImageLookup() if real_images_enabled else None
+        )
 
     def generate_plan(
         self,
@@ -393,6 +445,7 @@ class KnowledgeRoutePlannerIntegration:
         pois = self.store.city_pois(city)
         if not pois:
             return RouteGenerationPayload(destination_name=request.destination_name, options=[])
+        self._remaining_route_real_images = ROUTE_REAL_IMAGE_LIMIT
 
         options = [
             self._build_option(
@@ -434,7 +487,7 @@ class KnowledgeRoutePlannerIntegration:
             chunk = pois[day_index * spots_per_day : (day_index + 1) * spots_per_day]
             if not chunk:
                 break
-            days.append(self._build_day(day_index + 1, chunk, pace))
+            days.append(self._build_day(city, day_index + 1, chunk, pace))
 
         photo_scores = [
             _float(p.get("quality_score")) or 0.75
@@ -469,6 +522,7 @@ class KnowledgeRoutePlannerIntegration:
 
     def _build_day(
         self,
+        city: str,
         day: int,
         pois: list[dict[str, Any]],
         pace: str,
@@ -501,7 +555,9 @@ class KnowledgeRoutePlannerIntegration:
                     latitude=latitude,
                     longitude=longitude,
                     images=[
-                        _image_resource(
+                        _real_or_card_image_resource(
+                            image_lookup=self._route_image_lookup(),
+                            query=f"{poi.get('name') or '旅行地点'} {city}",
                             category=category,
                             title=str(poi.get("name") or "旅行地点"),
                             subtitle=address,
@@ -518,6 +574,12 @@ class KnowledgeRoutePlannerIntegration:
             commute_tip="本日地点来自真实 POI 坐标，出发前建议用地图复核实时交通。",
             spots=spots,
         )
+
+    def _route_image_lookup(self) -> ImageLookup | None:
+        if not self.image_lookup or self._remaining_route_real_images <= 0:
+            return None
+        self._remaining_route_real_images -= 1
+        return self.image_lookup
 
 
 class LocalMediaAssetIntegration:
