@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     ai_cache_enabled: bool = Field(default=True, alias="AI_CACHE_ENABLED")
     ai_cache_ttl: int = Field(default=3600, alias="AI_CACHE_TTL")
 
+    analytics_enabled: bool = Field(default=True, alias="ANALYTICS_ENABLED")
+    analytics_admin_emails: list[str] = Field(default_factory=list, alias="ANALYTICS_ADMIN_EMAILS")
+
     amap_api_key: str | None = Field(default=None, alias="AMAP_API_KEY")
     amap_base_url: str = Field(default="https://restapi.amap.com/v3", alias="AMAP_BASE_URL")
 
@@ -107,6 +110,7 @@ class Settings(BaseSettings):
         "cors_allow_origins",
         "cors_allow_methods",
         "cors_allow_headers",
+        "analytics_admin_emails",
         mode="before",
     )
     @classmethod

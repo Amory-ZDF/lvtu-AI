@@ -19,6 +19,7 @@ import { useAutoSave, type SaveStatus } from '@/hooks/useAutoSave'
 import { useCollaboration } from '@/hooks/useCollaboration'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
+import { trackAnalyticsEvent } from '@/services/analytics'
 import {
   getTrip,
   listTripDays,
@@ -606,6 +607,14 @@ export function TripDetailPage() {
     try {
       const result = await generateOutfitPreviewImage(outfitId, true)
       setOutfits((prev) => prev.map((item) => (item.id === outfitId ? result.outfit : item)))
+      trackAnalyticsEvent({
+        event_name: 'outfit_preview_generated',
+        event_category: 'conversion',
+        metadata: {
+          outfit_id: outfitId,
+          generated: result.generated,
+        },
+      })
       showToast(result.message || 'AI 穿搭预览图已生成')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'AI 穿搭预览生成失败')

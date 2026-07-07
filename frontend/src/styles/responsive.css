@@ -40,6 +40,8 @@
   .pack-layout { grid-template-columns: 1fr; }
   .outfit-top-row { flex-direction: column; gap: 16px; }
   .weather-badge { flex: 0 0 auto; width: 100%; }
+  .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analytics-two-col { grid-template-columns: 1fr; gap: 0; }
 
   .sub-tabs { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
   .sub-tabs::-webkit-scrollbar { display: none; }
@@ -73,6 +75,10 @@
   .budget-strip { grid-template-columns: repeat(2, 1fr); }
   .pack-items { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
+  .analytics-header,
+  .analytics-actions { align-items: stretch; flex-direction: column; }
+  .analytics-grid { grid-template-columns: 1fr; }
+  .analytics-row.inline { align-items: flex-start; flex-direction: column; }
 
   .detail-meta { gap: 6px; }
   .detail-meta span { font-size: 0.75rem; padding: 4px 10px; }

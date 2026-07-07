@@ -7,6 +7,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { recommendDestinationsAsync } from '@/services/planning'
+import { trackAnalyticsEvent } from '@/services/analytics'
 import { useJobProgress } from '@/hooks/useJobProgress'
 import { useTripStore } from '@/store/tripStore'
 import { useUIStore } from '@/store/uiStore'
@@ -126,7 +127,16 @@ export function StartPage() {
       if ((job.status === 'succeeded' || job.status === 'completed') && job.output_data) {
         const parsed = parseDestinations(job.output_data)
         if (parsed) {
+          const payload = buildPayload()
           setDestinations(parsed)
+          trackAnalyticsEvent({
+            event_name: 'destination_recommendation_success',
+            event_category: 'conversion',
+            metadata: {
+              destination_count: parsed.destinations.length,
+              duration_days: payload.duration_days,
+            },
+          })
           setGenerating(false)
           navigate('/destinations')
           return
@@ -150,7 +160,16 @@ export function StartPage() {
     if (status === 'succeeded') {
       const parsed = parseDestinations(outputData)
       if (parsed) {
+        const payload = buildPayload()
         setDestinations(parsed)
+        trackAnalyticsEvent({
+          event_name: 'destination_recommendation_success',
+          event_category: 'conversion',
+          metadata: {
+            destination_count: parsed.destinations.length,
+            duration_days: payload.duration_days,
+          },
+        })
         showToast('推荐结果已生成')
         setTimeout(() => {
           setGenerating(false)

@@ -24,6 +24,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { getMe } from '@/services/auth'
+import { AnalyticsTracker } from '@/hooks/useAnalytics'
 // 首屏优先：HomePage / LoginPage 保持同步加载
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
@@ -32,6 +33,7 @@ const StartPage = lazy(() => import('@/pages/StartPage'))
 const DestinationsPage = lazy(() => import('@/pages/DestinationsPage'))
 const ComparisonPage = lazy(() => import('@/pages/ComparisonPage'))
 const TripDetailPage = lazy(() => import('@/pages/TripDetailPage'))
+const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
 
 /** 路由级加载占位 */
 function RouteFallback() {
@@ -100,6 +102,7 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <AuthBootstrap />
+        <AnalyticsTracker />
         <ToastContainer />
         <Routes>
           {/* 登录页独立于主布局 */}
@@ -136,6 +139,14 @@ export default function App() {
               element={
                 <Suspense fallback={<RouteFallback />}>
                   <TripDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <AnalyticsPage />
                 </Suspense>
               }
             />

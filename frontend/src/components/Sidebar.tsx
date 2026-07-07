@@ -17,6 +17,7 @@ export function Sidebar() {
 
   const NAV_ITEMS = [
     { to: '/', icon: '🏠', label: t('nav.home'), end: true },
+    { to: '/analytics', icon: '📊', label: '数据中台' },
   ]
 
   const handleNavClick = () => {

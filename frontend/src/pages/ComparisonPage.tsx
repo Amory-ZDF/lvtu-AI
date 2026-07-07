@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useTripStore } from '@/store/tripStore'
+import { trackAnalyticsEvent } from '@/services/analytics'
 import { generateRoutes } from '@/services/planning'
 import { createPackingItem, createTrip, createTripDay, createTripPoint } from '@/services/trip'
 import { createSpot } from '@/services/spot'
@@ -332,7 +333,18 @@ export function ComparisonPage() {
     setError(null)
     const duration = lastRequest?.duration_days || 3
     generateRoutes({ destination_name: destinationName, duration_days: duration })
-      .then((data) => setRouteOptions(data))
+      .then((data) => {
+        setRouteOptions(data)
+        trackAnalyticsEvent({
+          event_name: 'route_generation_success',
+          event_category: 'conversion',
+          metadata: {
+            destination_name: destinationName,
+            duration_days: duration,
+            option_count: data.options.length,
+          },
+        })
+      })
       .catch((err) => setError(err instanceof Error ? err.message : '路线生成失败'))
       .finally(() => setLoading(false))
   }
@@ -372,6 +384,14 @@ export function ComparisonPage() {
       })
       showToast('行程已创建，正在写入每日安排...')
       await createGeneratedTripContent(trip.id, selectedOption)
+      trackAnalyticsEvent({
+        event_name: 'trip_created',
+        event_category: 'conversion',
+        metadata: {
+          destination_name: destinationName,
+          route_title: selectedOption.title,
+        },
+      })
       showToast('完整行程、机位、穿搭和打包清单已生成')
       navigate(`/trips/${trip.id}`)
     } catch (err) {

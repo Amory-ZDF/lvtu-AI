@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
 import { useUIStore } from '@/store/uiStore'
 import { useTripStore } from '@/store/tripStore'
+import { trackAnalyticsEvent } from '@/services/analytics'
 import { recommendDestinations } from '@/services/planning'
 import type { DestinationItem, DestinationRecommendationPayload } from '@/types'
 import type { DestinationPreview } from '@/data/mock'
@@ -82,7 +83,17 @@ export function DestinationsPage() {
       interests: ['自然', '拍照', '美食'],
     }
     recommendDestinations(payload)
-      .then((data) => setDestinations(data))
+      .then((data) => {
+        setDestinations(data)
+        trackAnalyticsEvent({
+          event_name: 'destination_recommendation_success',
+          event_category: 'conversion',
+          metadata: {
+            destination_count: data.destinations.length,
+            duration_days: payload.duration_days,
+          },
+        })
+      })
       .catch((err) =>
         setError(err instanceof Error ? err.message : '获取推荐失败'),
       )
