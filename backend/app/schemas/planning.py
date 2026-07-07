@@ -98,3 +98,18 @@ class MediaPlaceholderGroup(BaseModel):
 class MediaPlaceholderPayload(BaseModel):
     destination_name: str | None = None
     assets: list[MediaPlaceholderGroup]
+
+
+class DestinationWeatherPayload(BaseModel):
+    destination_name: str
+    available: bool
+    source: str = "amap"
+    city: str | None = None
+    adcode: str | None = None
+    weather: str | None = None
+    temperature: str | None = None
+    wind_direction: str | None = None
+    wind_power: str | None = None
+    humidity: str | None = None
+    report_time: str | None = None
+    message: str | None = None

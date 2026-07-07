@@ -37,6 +37,16 @@ CATEGORY_LABELS = {
     "attraction": "经典景点",
 }
 
+POI_FAMILY_SUFFIXES = (
+    "国家森林公园",
+    "森林公园",
+    "风景名胜区",
+    "风景区",
+    "旅游区",
+    "景区",
+    "观景台",
+)
+
 INTEREST_CATEGORY_HINTS = {
     "拍照": {"photo_spot"},
     "摄影": {"photo_spot"},
@@ -77,6 +87,46 @@ def _load_items(path: Path) -> list[dict[str, Any]]:
 
 def _slug(value: str) -> str:
     return "".join(ch.lower() for ch in value if ch.isalnum())[:40] or "unknown"
+
+
+def _poi_family(name: str, city: str) -> str:
+    original = name.strip()
+    value = original.replace(city, "", 1).strip() if city else original
+    for separator in ("-", "—", "·", "（", "("):
+        value = value.split(separator, 1)[0].strip()
+
+    for marker in ("国家森林公园", "森林公园"):
+        if marker in value:
+            prefix = value.split(marker, 1)[0].strip()
+            if len(prefix) >= 2:
+                return prefix
+
+    mountain_index = value.find("山")
+    if mountain_index >= 1 and any(
+        marker in value[mountain_index + 1 :]
+        for marker in ("公园", "景区", "寺", "索道", "栈道", "峡", "观景")
+    ):
+        return value[: mountain_index + 1]
+
+    for suffix in POI_FAMILY_SUFFIXES:
+        if value.endswith(suffix) and len(value) > len(suffix) + 1:
+            value = value[: -len(suffix)].strip()
+            break
+    return value or original
+
+
+def _family_conflicts(family: str, families: set[str]) -> bool:
+    if family in families:
+        return True
+    if len(family) >= 3:
+        return any(
+            (other.startswith(family) or family.startswith(other))
+            for other in families
+            if len(other) >= 3
+        )
+    if len(family) == 2:
+        return f"{family}山" in families or any(f"{other}山" == family for other in families)
+    return False
 
 
 def _float(value: Any) -> float | None:
@@ -447,26 +497,35 @@ class KnowledgeRoutePlannerIntegration:
             return RouteGenerationPayload(destination_name=request.destination_name, options=[])
         self._remaining_route_real_images = ROUTE_REAL_IMAGE_LIMIT
 
-        options = [
-            self._build_option(
-                city=city,
-                request=request,
-                route_id="knowledge-photo",
-                title=f"{city}高出片慢游线",
-                pace="relaxed",
-                categories={"photo_spot", "nature", "citywalk"},
-                spots_per_day=3,
-            ),
-            self._build_option(
-                city=city,
-                request=request,
-                route_id="knowledge-classic",
-                title=f"{city}经典初游线",
-                pace=request.pace or "balanced",
-                categories={"attraction", "culture", "museum", "nature", "citywalk"},
-                spots_per_day=4,
-            ),
-        ]
+        first_timer_option = self._build_option(
+            city=city,
+            request=request,
+            route_id="knowledge-first-timer",
+            title=f"{city}经典初访覆盖线",
+            pace=request.pace or "balanced",
+            categories={"attraction", "culture", "museum", "nature", "photo_spot"},
+            spots_per_day=4,
+            audience="第一次来或旅行次数不多，想稳妥覆盖经典点位的人",
+            focus_text="经典景点、自然风光、高出片机位",
+        )
+        first_timer_names = {
+            spot.name
+            for day in first_timer_option.days
+            for spot in day.spots
+        }
+        repeat_visitor_option = self._build_option(
+            city=city,
+            request=request,
+            route_id="knowledge-repeat-visitor",
+            title=f"{city}复访深度出片线",
+            pace="relaxed",
+            categories={"photo_spot", "citywalk", "nature", "culture"},
+            spots_per_day=3,
+            audience="已经来过或旅行经验较多，想找更小众机位和慢节奏体验的人",
+            focus_text="小众机位、城市漫步、深度体验",
+            exclude_names=first_timer_names,
+        )
+        options = [first_timer_option, repeat_visitor_option]
         options = [option for option in options if option.days]
         return RouteGenerationPayload(destination_name=city, options=options)
 
@@ -480,8 +539,16 @@ class KnowledgeRoutePlannerIntegration:
         pace: str,
         categories: set[str],
         spots_per_day: int,
+        audience: str,
+        focus_text: str,
+        exclude_names: set[str] | None = None,
     ) -> RouteOption:
-        pois = self._select_pois(city, categories, request.duration_days * spots_per_day)
+        pois = self._select_pois(
+            city,
+            categories,
+            request.duration_days * spots_per_day,
+            exclude_names=exclude_names,
+        )
         days: list[RouteDayPlan] = []
         for day_index in range(request.duration_days):
             chunk = pois[day_index * spots_per_day : (day_index + 1) * spots_per_day]
@@ -502,8 +569,8 @@ class KnowledgeRoutePlannerIntegration:
             estimated_budget=_budget_range(city, request.duration_days),
             photo_score=round(min(avg_photo * 10, 9.8), 1),
             summary=(
-                f"基于 {city} 本地知识库真实 POI 生成，优先组合"
-                f"{'、'.join(CATEGORY_LABELS.get(c, c) for c in list(categories)[:3])}。"
+                f"适合{audience}。基于 {city} 本地知识库真实 POI 生成，优先组合"
+                f"{focus_text}。"
             ),
             days=days,
         )
@@ -513,11 +580,52 @@ class KnowledgeRoutePlannerIntegration:
         city: str,
         categories: set[str],
         limit: int,
+        exclude_names: set[str] | None = None,
     ) -> list[dict[str, Any]]:
         pois = self.store.city_pois(city)
-        selected = [p for p in pois if str(p.get("category")) in categories]
+        excluded_names = exclude_names or set()
+        excluded_families = {
+            _poi_family(name, city)
+            for name in excluded_names
+        }
+        selected: list[dict[str, Any]] = []
+        selected_families: set[str] = set()
+
+        def append_candidates(
+            candidates: list[dict[str, Any]],
+            *,
+            allow_excluded: bool = False,
+            allow_same_family: bool = False,
+        ) -> None:
+            for poi in candidates:
+                if len(selected) >= limit:
+                    return
+                name = str(poi.get("name") or "")
+                family = _poi_family(name, city)
+                if poi in selected:
+                    continue
+                if not allow_excluded and (
+                    name in excluded_names
+                    or _family_conflicts(family, excluded_families)
+                ):
+                    continue
+                if not allow_same_family and _family_conflicts(
+                    family,
+                    selected_families,
+                ):
+                    continue
+                selected.append(poi)
+                selected_families.add(family)
+
+        append_candidates(
+            [p for p in pois if str(p.get("category")) in categories],
+        )
         if len(selected) < limit:
-            selected.extend(p for p in pois if p not in selected)
+            append_candidates(pois)
+        if len(selected) < limit:
+            append_candidates(pois, allow_same_family=True)
+        if len(selected) < limit:
+            append_candidates(pois, allow_excluded=True, allow_same_family=True)
         return selected[:limit]
 
     def _build_day(

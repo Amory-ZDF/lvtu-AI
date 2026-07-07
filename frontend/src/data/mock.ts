@@ -40,6 +40,11 @@ export interface PlanOption {
   price: string
   metrics: { level: 'high' | 'mid' | 'low'; label: string }[]
   description: string
+  summaryStats?: string[]
+  differentiators?: string[]
+  scoreBreakdown?: { label: string; score: string; reason: string }[]
+  bestFor?: string
+  tradeoff?: string
 }
 
 /** 行程点（用于拖拽排序） */
@@ -61,6 +66,7 @@ export interface OutfitCardData {
   desc: string
   gradient: string
   genderLabel?: string
+  hasAiPreview?: boolean
 }
 
 export interface OutfitDayData {
@@ -111,8 +117,10 @@ export interface OutfitDetailData {
   items: string[]
   reason: string
   spotId: string | null
+  imageUrl?: string | null
   aiPrompt?: string
   genderLabel?: string
+  hasAiPreview?: boolean
 }
 
 /** 打包清单 */

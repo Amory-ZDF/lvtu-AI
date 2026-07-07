@@ -123,6 +123,25 @@ class AmapClient:
         geocodes = data.get("geocodes", [])
         return geocodes[0] if geocodes else None
 
+    def weather_live(self, city: str) -> dict[str, Any] | None:
+        """实时天气查询。
+
+        Args:
+            city: 城市名或 adcode。
+
+        Returns:
+            高德 lives[0]，含 city/weather/temperature/winddirection/windpower/humidity/reporttime。
+        """
+        data = self._get(
+            "weather/weatherInfo",
+            {
+                "city": city,
+                "extensions": "base",
+            },
+        )
+        lives = data.get("lives", [])
+        return lives[0] if lives else None
+
 
 _amap_client: AmapClient | None = None
 

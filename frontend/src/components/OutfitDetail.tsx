@@ -2,21 +2,32 @@
  * 穿搭详情弹窗
  */
 
+import type { KeyboardEvent } from 'react'
 import type { OutfitDetailData } from '@/data/mock'
 
 interface OutfitDetailProps {
   data: OutfitDetailData
   onClose: () => void
   onViewSpot?: (spotId: string) => void
+  onGenerateImage?: () => void
+  generatingImage?: boolean
 }
 
-export function OutfitDetail({ data, onClose, onViewSpot }: OutfitDetailProps) {
-  const copyPrompt = async () => {
-    if (!data.aiPrompt) return
-    try {
-      await navigator.clipboard.writeText(data.aiPrompt)
-    } catch {
-      /* browser may block clipboard in some local contexts */
+export function OutfitDetail({
+  data,
+  onClose,
+  onViewSpot,
+  onGenerateImage,
+  generatingImage = false,
+}: OutfitDetailProps) {
+  const canGenerateFromHero = Boolean(onGenerateImage && !data.hasAiPreview && !generatingImage)
+  const safeImageUrl = data.imageUrl?.replace(/"/g, '\\"')
+
+  const handleHeroKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!canGenerateFromHero) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onGenerateImage?.()
     }
   }
 
@@ -25,15 +36,50 @@ export function OutfitDetail({ data, onClose, onViewSpot }: OutfitDetailProps) {
       <div className="detail-panel" onClick={(e) => e.stopPropagation()}>
         <button className="dp-close" onClick={onClose}>×</button>
         <div
-          className="dp-hero-img"
-          style={{ backgroundImage: data.hero, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        ></div>
+          className={`dp-hero-img outfit-hero-img${data.hasAiPreview ? ' has-preview' : ' needs-preview'}${generatingImage ? ' is-generating' : ''}`}
+          onClick={() => canGenerateFromHero && onGenerateImage?.()}
+          onKeyDown={handleHeroKeyDown}
+          role={canGenerateFromHero ? 'button' : undefined}
+          tabIndex={canGenerateFromHero ? 0 : undefined}
+        >
+          <div className="outfit-hero-blur" style={{ backgroundImage: data.hero }} />
+          {safeImageUrl && (
+            <div
+              className="outfit-hero-full"
+              style={{ backgroundImage: `url("${safeImageUrl}")` }}
+              aria-label={`${data.name}穿搭预览`}
+            />
+          )}
+          {onGenerateImage && (!data.hasAiPreview || generatingImage) && (
+            <div className="outfit-hero-cta">
+              <strong>{generatingImage ? '正在生成 AI 穿搭预览...' : '点击生成 AI 穿搭预览'}</strong>
+              <span>生成前会用模糊背景占位，图片仅作穿搭氛围参考。</span>
+            </div>
+          )}
+        </div>
         <div className="dp-content">
           <h2>{data.name}</h2>
           <p className="dp-subtitle">
             🎬 {data.scene} · {data.weather}
             {data.genderLabel ? ` · ${data.genderLabel}` : ''}
           </p>
+          {onGenerateImage && (
+            <div className="dp-ai-preview-actions">
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={generatingImage}
+                onClick={onGenerateImage}
+              >
+                {generatingImage
+                  ? '正在生成...'
+                  : data.hasAiPreview
+                    ? '重新生成 AI 穿搭预览'
+                    : '生成 AI 穿搭预览'}
+              </button>
+              <span>AI 生成，仅作穿搭氛围参考。</span>
+            </div>
+          )}
           <div className="dp-section">
             <h4>👗 单品清单</h4>
             <div className="dp-items-list">
@@ -46,18 +92,6 @@ export function OutfitDetail({ data, onClose, onViewSpot }: OutfitDetailProps) {
             <h4>💡 穿搭理由</h4>
             <p>{data.reason}</p>
           </div>
-          {data.aiPrompt && (
-            <div className="dp-section">
-              <h4>🖼️ AI 生图预览</h4>
-              <p style={{ marginBottom: '8px' }}>
-                当前先展示提示词；配置后端生图 API Key 后，可直接用这段提示词生成穿搭预览图。
-              </p>
-              <div className="prompt-box">{data.aiPrompt}</div>
-              <button className="btn btn-outline" style={{ marginTop: '10px' }} onClick={copyPrompt}>
-                复制提示词
-              </button>
-            </div>
-          )}
           {data.spotId && (
             <div
               className="dp-link-card"

@@ -113,3 +113,19 @@ export interface MediaPlaceholderPayload {
   destination_name: string | null
   assets: MediaPlaceholderGroup[]
 }
+
+/** 目的地实时天气 */
+export interface DestinationWeatherPayload {
+  destination_name: string
+  available: boolean
+  source: string
+  city?: string | null
+  adcode?: string | null
+  weather?: string | null
+  temperature?: string | null
+  wind_direction?: string | null
+  wind_power?: string | null
+  humidity?: string | null
+  report_time?: string | null
+  message?: string | null
+}

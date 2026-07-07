@@ -172,56 +172,24 @@ class MockRoutePlannerIntegration:
         request: RouteGenerationRequest,
     ) -> RouteGenerationPayload:
         destination = request.destination_name
+        duration = min(request.duration_days, 2)
         option_a = RouteOption(
-            id="route-photo-relax",
-            title=f"{destination} 高出片慢游线",
-            pace="relaxed",
+            id="route-classic-first-timer",
+            title=f"{destination} 经典初访覆盖线",
+            pace=request.pace or "balanced",
             estimated_budget="5600 RMB",
-            photo_score=9.4,
-            summary="围绕步行友好片区展开，兼顾经典打卡与停留时间。",
+            photo_score=8.6,
+            summary="适合第一次来或旅行次数不多的人，优先覆盖经典地标和低决策成本动线。",
             days=[
                 RouteDayPlan(
                     day=1,
-                    theme="抵达适应与核心街区预热",
-                    commute_tip="优先选择入住后步行覆盖的核心片区。",
-                    spots=[
-                        RouteSpot(
-                            time_slot="下午",
-                            name="入住周边漫步",
-                            description="先熟悉街区节奏，安排轻量打卡和咖啡店。",
-                            suggested_duration_hours=2.0,
-                            images=[
-                                _image_resource(
-                                    "spot",
-                                    f"{destination} neighborhood",
-                                    "quiet street walk",
-                                )
-                            ],
-                        ),
-                        RouteSpot(
-                            time_slot="傍晚",
-                            name="黄金时段拍摄点",
-                            description="利用日落前后 1 小时完成首轮出片。",
-                            suggested_duration_hours=1.5,
-                            images=[
-                                _image_resource(
-                                    "viewpoint",
-                                    f"{destination} sunset viewpoint",
-                                    "golden hour city scene",
-                                )
-                            ],
-                        ),
-                    ],
-                ),
-                RouteDayPlan(
-                    day=2,
-                    theme="经典景点与深度体验",
+                    theme="经典地标与核心街区",
                     commute_tip="将高热景点前置，避开中午人流高峰。",
                     spots=[
                         RouteSpot(
                             time_slot="上午",
                             name="经典地标",
-                            description="早到减少排队时间，并保留宽松拍照节奏。",
+                            description="第一次到访优先完成城市辨识度最高的地标。",
                             suggested_duration_hours=3.0,
                             images=[
                                 _image_resource(
@@ -233,9 +201,118 @@ class MockRoutePlannerIntegration:
                         ),
                         RouteSpot(
                             time_slot="下午",
+                            name="城市博物馆/展馆",
+                            description="用室内展馆补足历史背景，也能平衡体力消耗。",
+                            suggested_duration_hours=2.0,
+                            images=[
+                                _image_resource(
+                                    "museum",
+                                    f"{destination} museum",
+                                    "quiet exhibition hall",
+                                )
+                            ],
+                        ),
+                    ],
+                ),
+                RouteDayPlan(
+                    day=2,
+                    theme="代表景区与轻松收尾",
+                    commute_tip="把距离较远的代表景区放在同一天，减少跨城折返。",
+                    spots=[
+                        RouteSpot(
+                            time_slot="上午",
+                            name="代表景区",
+                            description="覆盖最具代表性的自然或人文景区。",
+                            suggested_duration_hours=3.0,
+                            images=[
+                                _image_resource(
+                                    "spot",
+                                    f"{destination} scenic area",
+                                    "signature travel view",
+                                )
+                            ],
+                        ),
+                        RouteSpot(
+                            time_slot="下午",
+                            name="核心商圈/老街",
+                            description="用餐饮和轻购物收尾，降低返程压力。",
+                            suggested_duration_hours=2.0,
+                            images=[
+                                _image_resource(
+                                    "citywalk",
+                                    f"{destination} old street",
+                                    "local street walk",
+                                )
+                            ],
+                        ),
+                    ],
+                ),
+            ][:duration],
+        )
+        option_b = RouteOption(
+            id="route-repeat-visitor",
+            title=f"{destination} 复访深度出片线",
+            pace="relaxed",
+            estimated_budget="4300 RMB",
+            photo_score=9.2,
+            summary="适合已经来过或旅行经验较多的人，减少经典重复，增加小众机位和慢体验。",
+            days=[
+                RouteDayPlan(
+                    day=1,
+                    theme="小众街区与日落机位",
+                    commute_tip="围绕同一片区慢走，减少跨区移动。",
+                    spots=[
+                        RouteSpot(
+                            time_slot="下午",
+                            name="小众街区漫步",
+                            description="避开常规打卡点，优先探索更在地的街巷和店铺。",
+                            suggested_duration_hours=2.0,
+                            images=[
+                                _image_resource(
+                                    "citywalk",
+                                    f"{destination} hidden neighborhood",
+                                    "quiet street walk",
+                                )
+                            ],
+                        ),
+                        RouteSpot(
+                            time_slot="傍晚",
+                            name="非热门日落机位",
+                            description="利用日落前后 1 小时完成更有差异的照片。",
+                            suggested_duration_hours=1.5,
+                            images=[
+                                _image_resource(
+                                    "viewpoint",
+                                    f"{destination} hidden sunset viewpoint",
+                                    "golden hour city scene",
+                                )
+                            ],
+                        ),
+                    ],
+                ),
+                RouteDayPlan(
+                    day=2,
+                    theme="深度体验与松弛留白",
+                    commute_tip="保留半天弹性时间，适合临时加点或二刷喜欢的区域。",
+                    spots=[
+                        RouteSpot(
+                            time_slot="上午",
+                            name="在地手作/市集",
+                            description="用体验型内容替代纯景点打卡，增强复访新鲜感。",
+                            suggested_duration_hours=2.0,
+                            images=[
+                                _image_resource(
+                                    "spot",
+                                    f"{destination} local market",
+                                    "hands-on local experience",
+                                )
+                            ],
+                        ),
+                        RouteSpot(
+                            time_slot="下午",
                             name="风格化咖啡/展览",
-                            description="补充室内体验，平衡体力消耗。",
-                            suggested_duration_hours=2.5,
+                            description="选择更适合慢坐和人像拍摄的室内空间。",
+                            suggested_duration_hours=2.0,
                             images=[
                                 _image_resource(
                                     "outfit",
@@ -246,16 +323,7 @@ class MockRoutePlannerIntegration:
                         ),
                     ],
                 ),
-            ],
-        )
-        option_b = RouteOption(
-            id="route-efficient",
-            title=f"{destination} 效率打卡线",
-            pace="compact",
-            estimated_budget="4300 RMB",
-            photo_score=8.6,
-            summary="优先覆盖核心地标，适合天数更少或首次到访。",
-            days=option_a.days[: min(len(option_a.days), request.duration_days)],
+            ][:duration],
         )
         return RouteGenerationPayload(
             destination_name=destination,

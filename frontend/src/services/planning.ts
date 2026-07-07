@@ -7,6 +7,7 @@ import { apiClient } from './api'
 import type {
   DestinationRecommendationRequest,
   DestinationRecommendationPayload,
+  DestinationWeatherPayload,
   RouteGenerationRequest,
   RouteGenerationPayload,
   GenerationJob,
@@ -24,6 +25,13 @@ export function generateRoutes(payload: RouteGenerationRequest): Promise<RouteGe
   return apiClient.post<RouteGenerationPayload>('/planning/routes', payload)
 }
 
+/** 目的地实时天气 */
+export function getDestinationWeather(destinationName: string): Promise<DestinationWeatherPayload> {
+  return apiClient.get<DestinationWeatherPayload>('/planning/weather', {
+    destination_name: destinationName,
+  })
+}
+
 /** 异步目的地推荐 → {job_id, status, output_data} */
 export function recommendDestinationsAsync(
   payload: DestinationRecommendationRequest,
@@ -39,6 +47,7 @@ export function generateRoutesAsync(payload: RouteGenerationRequest): Promise<Ge
 export const planningService = {
   recommendDestinations,
   generateRoutes,
+  getDestinationWeather,
   recommendDestinationsAsync,
   generateRoutesAsync,
 }

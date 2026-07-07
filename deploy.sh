@@ -114,11 +114,11 @@ echo "SSL 证书获取成功！"
 # ---- 第 2 步: 构建并启动所有服务 ----
 echo ""
 echo "[2/4] 构建 Docker 镜像..."
-docker compose -f docker-compose.prod.yml build
+docker compose --env-file .env.production -f docker-compose.prod.yml build
 
 echo ""
 echo "[3/4] 启动服务..."
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 
 # ---- 第 3 步: 等待服务就绪 ----
 echo ""
@@ -131,7 +131,7 @@ MAX_RETRIES=30
 until curl -sf http://localhost:8000/api/v1/health/live > /dev/null 2>&1; do
     RETRIES=$((RETRIES+1))
     if [ $RETRIES -ge $MAX_RETRIES ]; then
-        echo "后端启动超时，请检查日志: docker compose -f docker-compose.prod.yml logs backend"
+        echo "后端启动超时，请检查日志: docker compose --env-file .env.production -f docker-compose.prod.yml logs backend"
         exit 1
     fi
     sleep 2
@@ -146,12 +146,12 @@ echo "  后端: https://${API_DOMAIN}"
 echo "  健康检查: https://${API_DOMAIN}/api/v1/health/live"
 echo ""
 echo "  常用命令:"
-echo "  查看日志: docker compose -f docker-compose.prod.yml logs -f"
-echo "  重启服务: docker compose -f docker-compose.prod.yml restart"
-echo "  停止服务: docker compose -f docker-compose.prod.yml down"
+echo "  查看日志: docker compose --env-file .env.production -f docker-compose.prod.yml logs -f"
+echo "  重启服务: docker compose --env-file .env.production -f docker-compose.prod.yml restart"
+echo "  停止服务: docker compose --env-file .env.production -f docker-compose.prod.yml down"
 echo "========================================="
 
 # 设置证书自动续期 cron
-(crontab -l 2>/dev/null; echo "0 3 * * * docker run --rm -v $(pwd)/certbot/conf:/etc/letsencrypt -v $(pwd)/certbot/www:/var/www/certbot certbot/certbot renew --quiet && docker compose -f $(pwd)/docker-compose.prod.yml restart nginx") | sort -u | crontab -
+(crontab -l 2>/dev/null; echo "0 3 * * * docker run --rm -v $(pwd)/certbot/conf:/etc/letsencrypt -v $(pwd)/certbot/www:/var/www/certbot certbot/certbot renew --quiet && docker compose --env-file $(pwd)/.env.production -f $(pwd)/docker-compose.prod.yml restart nginx") | sort -u | crontab -
 
 echo "SSL 证书自动续期已配置（每天凌晨 3 点检查）"

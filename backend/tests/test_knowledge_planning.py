@@ -36,7 +36,7 @@ def _seed_dir(tmp_path: Path) -> Path:
             "recommended_duration_minutes": 60,
             "rating": 4.8,
             "tags": ["photo_spot", "观景台"],
-            "quality_score": 0.96,
+            "quality_score": 0.98,
         },
         {
             "id": "poi-2",
@@ -50,7 +50,7 @@ def _seed_dir(tmp_path: Path) -> Path:
             "recommended_duration_minutes": 120,
             "rating": 4.6,
             "tags": ["culture", "古镇"],
-            "quality_score": 0.9,
+            "quality_score": 0.95,
         },
         {
             "id": "poi-3",
@@ -64,6 +64,90 @@ def _seed_dir(tmp_path: Path) -> Path:
             "recommended_duration_minutes": 90,
             "rating": 4.5,
             "tags": ["nature", "公园"],
+            "quality_score": 0.93,
+        },
+        {
+            "id": "poi-4",
+            "destination_name": "测试城",
+            "name": "测试经典地标",
+            "category": "attraction",
+            "address": "中心路 1 号",
+            "province": "测试省",
+            "latitude": 30.4,
+            "longitude": 120.4,
+            "recommended_duration_minutes": 120,
+            "rating": 4.7,
+            "tags": ["attraction", "地标"],
+            "quality_score": 0.97,
+        },
+        {
+            "id": "poi-5",
+            "destination_name": "测试城",
+            "name": "测试博物馆",
+            "category": "museum",
+            "address": "博物馆路",
+            "province": "测试省",
+            "latitude": 30.5,
+            "longitude": 120.5,
+            "recommended_duration_minutes": 90,
+            "rating": 4.4,
+            "tags": ["museum", "展馆"],
+            "quality_score": 0.91,
+        },
+        {
+            "id": "poi-6",
+            "destination_name": "测试城",
+            "name": "测试经典地标-观景台",
+            "category": "photo_spot",
+            "address": "中心路高台",
+            "province": "测试省",
+            "latitude": 30.6,
+            "longitude": 120.6,
+            "recommended_duration_minutes": 60,
+            "rating": 4.7,
+            "tags": ["photo_spot", "观景台"],
+            "quality_score": 0.92,
+        },
+        {
+            "id": "poi-7",
+            "destination_name": "测试城",
+            "name": "测试老街",
+            "category": "citywalk",
+            "address": "老街 8 号",
+            "province": "测试省",
+            "latitude": 30.7,
+            "longitude": 120.7,
+            "recommended_duration_minutes": 100,
+            "rating": 4.5,
+            "tags": ["citywalk", "街区"],
+            "quality_score": 0.9,
+        },
+        {
+            "id": "poi-8",
+            "destination_name": "测试城",
+            "name": "测试山谷",
+            "category": "photo_spot",
+            "address": "山谷路",
+            "province": "测试省",
+            "latitude": 30.8,
+            "longitude": 120.8,
+            "recommended_duration_minutes": 80,
+            "rating": 4.5,
+            "tags": ["photo_spot", "山谷"],
+            "quality_score": 0.89,
+        },
+        {
+            "id": "poi-9",
+            "destination_name": "测试城",
+            "name": "测试湖边",
+            "category": "nature",
+            "address": "湖边路",
+            "province": "测试省",
+            "latitude": 30.9,
+            "longitude": 120.9,
+            "recommended_duration_minutes": 80,
+            "rating": 4.3,
+            "tags": ["nature", "湖"],
             "quality_score": 0.88,
         },
     ]
@@ -94,11 +178,24 @@ def test_knowledge_route_generation_uses_real_pois(tmp_path: Path) -> None:
     )
 
     assert result.destination_name == "测试城"
-    assert result.options
-    first_day = result.options[0].days[0]
+    assert len(result.options) == 2
+    first_option, second_option = result.options
+    assert "初访" in first_option.title
+    assert "复访" in second_option.title
+    assert "第一次" in first_option.summary
+    assert "已经来过" in second_option.summary
+
+    first_day = first_option.days[0]
     assert first_day.spots[0].name == "测试观景台"
     assert first_day.spots[0].images[0].placeholder is False
-    assert first_day.spots[0].time_slot == "09:30"
+    assert first_day.spots[0].time_slot == "09:00"
+
+    first_names = {spot.name for day in first_option.days for spot in day.spots}
+    second_names = {spot.name for day in second_option.days for spot in day.spots}
+    assert "测试经典地标" in first_names
+    assert "测试山谷" in second_names
+    assert "测试经典地标-观景台" not in second_names
+    assert first_names.isdisjoint(second_names)
 
 
 def test_local_media_returns_non_placeholder_cards() -> None:

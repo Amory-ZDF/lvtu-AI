@@ -45,3 +45,12 @@ export interface OutfitRecommendationUpdate {
   tips?: string | null
   images?: string[]
 }
+
+/** AI 穿搭预览图生成结果 */
+export interface OutfitPreviewImageResult {
+  outfit: OutfitRecommendation
+  image_url: string | null
+  provider: string
+  generated: boolean
+  message: string | null
+}

@@ -14,7 +14,7 @@ ROUTE_SYSTEM_PROMPT = (
     "spots: [{time_slot, name, description, suggested_duration_hours}]}]}]}\n"
     "3. 字段说明：\n"
     "   - destination_name: 目的地名称\n"
-    "   - options: 路线方案列表（2 个），每个方案包含：\n"
+    "   - options: 路线方案列表（必须且只能 2 个），每个方案包含：\n"
     "     - id: 路线唯一标识，格式 route-<slug>\n"
     "     - title: 路线标题\n"
     "     - pace: 节奏（relaxed / balanced / compact）\n"
@@ -30,7 +30,12 @@ ROUTE_SYSTEM_PROMPT = (
     "         - name: 景点名称\n"
     "         - description: 景点描述\n"
     "         - suggested_duration_hours: 建议停留时长（小时，浮点数）\n"
-    "4. 每个方案的 days 数量应等于行程天数。"
+    "4. 每个方案的 days 数量应等于行程天数。\n"
+    "5. 两个方案必须有明确差异，不能只是顺序不同：\n"
+    "   - 方案 A 面向第一次来、旅行次数不多、希望稳妥覆盖经典点位的人；\n"
+    "   - 方案 B 面向已经来过、旅行经验较多、希望小众机位/深度体验/慢节奏的人；\n"
+    "   - 两个方案的景点名称重合率尽量低于 30%，不要重复同一景区的不同子点位；\n"
+    "   - summary 需要写清楚该方案适合的人群，以及和另一个方案的核心差异。"
 )
 
 ROUTE_USER_PROMPT_TEMPLATE = (
@@ -40,6 +45,8 @@ ROUTE_USER_PROMPT_TEMPLATE = (
     "节奏偏好：{pace}\n"
     "出行人数：{travelers} 人\n"
     "兴趣点：{interests}\n\n"
+    "请输出两条差异化路线：A=经典初访覆盖线，B=复访深度出片线；如果目的地景点有限，"
+    "也要优先保证核心动线和点位名称不重复，并在 summary 解释取舍。\n"
     "请返回 JSON 格式的路线规划结果。"
 )
 

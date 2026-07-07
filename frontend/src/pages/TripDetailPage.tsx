@@ -32,11 +32,11 @@ import {
   createPackingItem,
   deletePackingItem,
 } from '@/services/trip'
-import { listOutfits } from '@/services/outfit'
+import { generateOutfitPreviewImage, listOutfits } from '@/services/outfit'
 import { listSpots, deleteSpot } from '@/services/spot'
 import { createAdjustment } from '@/services/adjustment'
+import { getDestinationWeather } from '@/services/planning'
 import {
-  buildOutfitImagePrompt,
   cssImageWithFallback,
   inferOutfitGender,
   outfitGenderLabel,
@@ -51,6 +51,7 @@ import type {
   PackingItem,
   OutfitRecommendation,
   PhotoSpotRecommendation,
+  DestinationWeatherPayload,
 } from '@/types'
 import type {
   SpotCardData,
@@ -95,7 +96,7 @@ function formatTime(t: string | null): string {
 function toOutfitCard(o: OutfitRecommendation): OutfitCardData {
   const gender = inferOutfitGender(o.style, o.scene, o.items)
   const fallback = pickGradient(o.id)
-  const image = resolveOutfitImage(o.images, o.id, o.scene, o.style, gender)
+  const image = resolveOutfitImage(o.images)
   return {
     id: o.id,
     sceneTag: o.scene,
@@ -104,14 +105,15 @@ function toOutfitCard(o: OutfitRecommendation): OutfitCardData {
     desc: o.items.map((i) => i.name).join(' · '),
     gradient: cssImageWithFallback(image, fallback),
     genderLabel: outfitGenderLabel(gender),
+    hasAiPreview: Boolean(image),
   }
 }
 
 /** OutfitRecommendation → OutfitDetailData */
-function toOutfitDetail(o: OutfitRecommendation, destinationName?: string): OutfitDetailData {
+function toOutfitDetail(o: OutfitRecommendation): OutfitDetailData {
   const gender = inferOutfitGender(o.style, o.scene, o.items)
   const fallback = pickGradient(o.id)
-  const image = resolveOutfitImage(o.images, o.id, o.scene, o.style, gender)
+  const image = resolveOutfitImage(o.images)
   const itemNames = o.items.map((i) => i.name)
   return {
     name: o.style,
@@ -121,15 +123,9 @@ function toOutfitDetail(o: OutfitRecommendation, destinationName?: string): Outf
     items: itemNames,
     reason: o.tips || o.items.map((i) => i.name).join('、'),
     spotId: null,
+    imageUrl: image || null,
     genderLabel: outfitGenderLabel(gender),
-    aiPrompt: buildOutfitImagePrompt({
-      destinationName,
-      gender,
-      scene: o.scene,
-      season: o.season,
-      style: o.style,
-      items: itemNames,
-    }),
+    hasAiPreview: Boolean(image),
   }
 }
 
@@ -221,6 +217,65 @@ function saveStatusText(status: SaveStatus): string {
   }
 }
 
+function parseTemperature(value?: string | null): number | null {
+  if (!value) return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function formatWeatherSummary(weather: DestinationWeatherPayload | null, destinationName?: string): string {
+  if (!weather) return '正在获取目的地实时天气...'
+  if (!weather.available) return weather.message || '暂未获取到实时天气，出发前请再次复核。'
+  const city = weather.city || destinationName || weather.destination_name
+  const parts = [
+    weather.weather,
+    weather.temperature ? `${weather.temperature}℃` : null,
+    weather.humidity ? `湿度 ${weather.humidity}%` : null,
+    weather.wind_direction && weather.wind_power
+      ? `${weather.wind_direction}风 ${weather.wind_power}级`
+      : null,
+  ].filter(Boolean)
+  return `${city} · ${parts.join(' · ')}`
+}
+
+function buildPackingNotices(params: {
+  trip: Trip | null
+  days: TripDay[]
+  pointsByDay: Record<string, TripPoint[]>
+  weather: DestinationWeatherPayload | null
+}): string[] {
+  const destination = params.trip?.destination_name || '目的地'
+  const allPoints = Object.values(params.pointsByDay).flat()
+  const routeText = `${destination}${allPoints.map((p) => `${p.name}${p.address || ''}${p.notes || ''}`).join('')}`
+  const notices = new Set<string>()
+  const temp = parseTemperature(params.weather?.temperature)
+  const weatherText = params.weather?.weather || ''
+
+  if (/雨|阵雨|雷|雪/.test(weatherText)) {
+    notices.add('天气可能有降水：建议带折叠伞、防水外套，并给电子设备准备防水袋。')
+  }
+  if (temp !== null && temp >= 30) {
+    notices.add('气温偏高：优先准备防晒、遮阳帽、补水和透气速干衣物。')
+  }
+  if (temp !== null && temp <= 10) {
+    notices.add('气温偏低：建议增加保暖外套、围巾和可叠穿内搭。')
+  }
+  if (/山|峡谷|森林|徒步|栈道|张家界|黄山|川西|云南/.test(routeText)) {
+    notices.add('含山地/栈道场景：穿防滑步行鞋，包里留一件轻薄外套。')
+  }
+  if (/海|岛|湖|湿地|漂流/.test(routeText)) {
+    notices.add('含水边场景：建议带防晒、驱蚊和可快速收纳的防水袋。')
+  }
+  if (/夜景|日落|观景|机位|拍照|摄影/.test(routeText)) {
+    notices.add('有拍照/观景安排：提前清理手机存储，带充电宝和镜头布。')
+  }
+  if (params.days.length >= 4) {
+    notices.add('行程超过 3 天：衣物按“可叠穿 + 可重复搭配”准备，减少行李重量。')
+  }
+  notices.add(`出发前 24 小时复核 ${destination} 天气、景区开放时间和预约规则。`)
+  return Array.from(notices).slice(0, 5)
+}
+
 export function TripDetailPage() {
   const navigate = useNavigate()
   const { tripId = '' } = useParams()
@@ -235,6 +290,7 @@ export function TripDetailPage() {
   const [packingItems, setPackingItems] = useState<PackingItem[]>([])
   const [outfits, setOutfits] = useState<OutfitRecommendation[]>([])
   const [spots, setSpots] = useState<PhotoSpotRecommendation[]>([])
+  const [destinationWeather, setDestinationWeather] = useState<DestinationWeatherPayload | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -250,6 +306,7 @@ export function TripDetailPage() {
   // 详情弹窗
   const [detailType, setDetailType] = useState<DetailType>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [generatingOutfitId, setGeneratingOutfitId] = useState<string | null>(null)
 
   // 删除确认
   const [confirmDelete, setConfirmDelete] = useState<ConfirmDeleteTarget | null>(null)
@@ -378,6 +435,33 @@ export function TripDetailPage() {
     return cleanup
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId, isAuthenticated, user])
+
+  useEffect(() => {
+    const destinationName = trip?.destination_name
+    if (!destinationName) {
+      setDestinationWeather(null)
+      return
+    }
+    let cancelled = false
+    setDestinationWeather(null)
+    getDestinationWeather(destinationName)
+      .then((data) => {
+        if (!cancelled) setDestinationWeather(data)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDestinationWeather({
+            destination_name: destinationName,
+            available: false,
+            source: 'amap',
+            message: '暂未获取到实时天气，出发前请再次复核。',
+          })
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [trip?.destination_name])
 
   // ── 拖拽排序 ──
   const handleDragStart = (dayId: string, index: number) => {
@@ -517,6 +601,19 @@ export function TripDetailPage() {
     setDetailId(null)
   }
 
+  const handleGenerateOutfitPreview = async (outfitId: string) => {
+    setGeneratingOutfitId(outfitId)
+    try {
+      const result = await generateOutfitPreviewImage(outfitId, true)
+      setOutfits((prev) => prev.map((item) => (item.id === outfitId ? result.outfit : item)))
+      showToast(result.message || 'AI 穿搭预览图已生成')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'AI 穿搭预览生成失败')
+    } finally {
+      setGeneratingOutfitId(null)
+    }
+  }
+
   // ── 自然语言改写 ──
   const handleAdjust = async (instruction: string) => {
     if (!instruction.trim()) return
@@ -607,6 +704,13 @@ export function TripDetailPage() {
   const totalCount = packingItems.length
   const packPercent = totalCount > 0 ? Math.round((packedCount / totalCount) * 100) : 0
   const packCategories = groupPackingItems(packingItems)
+  const weatherSummary = formatWeatherSummary(destinationWeather, trip?.destination_name)
+  const packingNotices = buildPackingNotices({
+    trip,
+    days,
+    pointsByDay,
+    weather: destinationWeather,
+  })
 
   // 地图点位（所有有坐标的行程点）
   const mapPoints: MapPoint[] = useMemo(() => {
@@ -996,15 +1100,33 @@ export function TripDetailPage() {
                   <div className="outfit-cards">
                     {group.items.map((o) => {
                       const card = toOutfitCard(o)
+                      const isGeneratingPreview = generatingOutfitId === o.id
+                      const handleOutfitCardClick = () => {
+                        if (!card.hasAiPreview) {
+                          if (!isGeneratingPreview) void handleGenerateOutfitPreview(o.id)
+                          return
+                        }
+                        openOutfitDetail(o.id)
+                      }
                       return (
                         <div
                           key={o.id}
-                          className="outfit-card"
-                          onClick={() => openOutfitDetail(o.id)}
+                          className={`outfit-card${card.hasAiPreview ? ' has-preview' : ' needs-preview'}${isGeneratingPreview ? ' is-generating' : ''}`}
+                          onClick={handleOutfitCardClick}
                         >
-                          <div className="outfit-visual" style={{ backgroundImage: card.gradient }}>
+                          <div
+                            className={`outfit-visual${card.hasAiPreview ? ' has-preview' : ' needs-preview'}${isGeneratingPreview ? ' is-generating' : ''}`}
+                            style={{ backgroundImage: card.gradient }}
+                          >
                             <span className="scene-tag">{card.sceneTag}</span>
                             {card.genderLabel && <span className="gender-tag">{card.genderLabel}</span>}
+                            <span className={card.hasAiPreview ? 'ai-preview-tag' : 'outfit-preview-hint'}>
+                              {isGeneratingPreview
+                                ? '正在生成...'
+                                : card.hasAiPreview
+                                  ? 'AI 预览'
+                                  : '点击生成 AI 预览'}
+                            </span>
                             {card.emoji && <span className="emoji">{card.emoji}</span>}
                           </div>
                           <div className="outfit-body">
@@ -1178,6 +1300,21 @@ export function TripDetailPage() {
                 <span className="pack-count">{packedCount}</span>
                 <small> / {totalCount} 件已打包</small>
               </p>
+              <div className="pack-side-section">
+                <h4>🌤️ 目的地天气</h4>
+                <p className="pack-weather-main">{weatherSummary}</p>
+                {destinationWeather?.available && destinationWeather.report_time && (
+                  <small>高德天气 · {destinationWeather.report_time}</small>
+                )}
+              </div>
+              <div className="pack-side-section">
+                <h4>⚠️ 出发注意事项</h4>
+                <ul className="pack-notice-list">
+                  {packingNotices.map((notice) => (
+                    <li key={notice}>{notice}</li>
+                  ))}
+                </ul>
+              </div>
             </aside>
           </div>
         </div>
@@ -1192,8 +1329,10 @@ export function TripDetailPage() {
       )}
       {detailType === 'outfit' && detailId && currentOutfit && (
         <OutfitDetail
-          data={toOutfitDetail(currentOutfit, trip?.destination_name)}
+          data={toOutfitDetail(currentOutfit)}
           onClose={closeDetail}
+          onGenerateImage={() => handleGenerateOutfitPreview(currentOutfit.id)}
+          generatingImage={generatingOutfitId === currentOutfit.id}
         />
       )}
 

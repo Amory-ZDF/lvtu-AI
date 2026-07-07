@@ -17,7 +17,7 @@ import { generateRoutes } from '@/services/planning'
 import { createPackingItem, createTrip, createTripDay, createTripPoint } from '@/services/trip'
 import { createSpot } from '@/services/spot'
 import { createOutfit } from '@/services/outfit'
-import { outfitPhotoUrl, type OutfitGender } from '@/utils/outfitImages'
+import type { OutfitGender } from '@/utils/outfitImages'
 import type { ImageResource, RouteOption, RouteGenerationPayload, TripPoint } from '@/types'
 import type { PlanOption } from '@/data/mock'
 
@@ -33,22 +33,141 @@ function scoreToLevel(score: number): 'high' | 'mid' | 'low' {
   return 'low'
 }
 
+function scoreLabel(score: number): string {
+  if (score >= 8) return '高'
+  if (score >= 6) return '中'
+  return '低'
+}
+
+function formatScore(score: number): string {
+  return Number.isInteger(score) ? `${score}` : score.toFixed(1)
+}
+
+function routeKeywords(option: RouteOption): string[] {
+  const text = `${option.title} ${option.summary} ${option.days
+    .flatMap((day) => [day.theme, ...day.spots.flatMap((spot) => [spot.name, spot.description, spot.category || ''])])
+    .join(' ')}`
+  const keywords = [
+    ['自然风光', /森林|峡谷|山|湖|海|岛|公园|湿地|日出|日落|观景/],
+    ['经典地标', /古城|博物馆|展馆|寺|塔|街区|广场|地标|历史|文化/],
+    ['高出片机位', /拍照|机位|观景|日落|人像|摄影|出片/],
+    ['城市漫步', /街|巷|咖啡|市集|步行|漫步|夜游/],
+    ['在地美食', /美食|餐|小吃|夜市|茶|咖啡/],
+  ] as const
+  return keywords.filter(([, pattern]) => pattern.test(text)).map(([label]) => label).slice(0, 4)
+}
+
+type RouteAudience = 'first-timer' | 'repeat-visitor'
+
+function inferRouteAudience(option: RouteOption, index: number): RouteAudience {
+  const text = `${option.title} ${option.summary}`
+  if (/复访|再来|来过|深度|小众|经验|二刷|非热门|慢体验/.test(text)) {
+    return 'repeat-visitor'
+  }
+  if (/初访|初游|第一次|首次|经典|覆盖|地标/.test(text)) {
+    return 'first-timer'
+  }
+  return index === 0 ? 'first-timer' : 'repeat-visitor'
+}
+
+function isRelaxedPace(pace: string): boolean {
+  const normalized = pace.toLowerCase()
+  return normalized.includes('relaxed') || normalized.includes('slow') || /慢|轻松|松弛/.test(pace)
+}
+
+function routeStats(option: RouteOption, audience: RouteAudience, isRelaxed: boolean): string[] {
+  const dayCount = option.days.length
+  const spotCount = option.days.reduce((sum, day) => sum + day.spots.length, 0)
+  const avgSpots = dayCount > 0 ? Math.round((spotCount / dayCount) * 10) / 10 : spotCount
+  return [
+    `${dayCount} 天 / ${spotCount} 个点位`,
+    `日均 ${avgSpots} 个停留点`,
+    audience === 'first-timer'
+      ? '经典覆盖，适合初访'
+      : isRelaxed
+        ? '小众深度，适合复访'
+        : '差异探索，适合复访',
+  ]
+}
+
+function firstSpotNames(option: RouteOption): string {
+  return option.days
+    .flatMap((day) => day.spots.map((spot) => spot.name))
+    .slice(0, 4)
+    .join(' → ')
+}
+
+function estimateCoverageScore(option: RouteOption): number {
+  const dayCount = Math.max(option.days.length, 1)
+  const spotCount = option.days.reduce((sum, day) => sum + day.spots.length, 0)
+  return Math.min(9.2, 6.6 + (spotCount / dayCount) * 0.55)
+}
+
+function estimateFoodScore(option: RouteOption): number {
+  const text = `${option.title}${option.summary}${option.days
+    .flatMap((day) => day.spots.flatMap((spot) => [spot.name, spot.description, spot.category || '']))
+    .join('')}`
+  return /美食|餐|小吃|夜市|茶|咖啡/.test(text) ? 8.6 : 7.4
+}
+
 /** 将 RouteOption 映射为 PlanOption 视图数据 */
 function toPlanOption(option: RouteOption, index: number): PlanOption {
   const letter = index === 0 ? 'A' : 'B'
-  const isRelaxed = option.pace.includes('慢') || option.pace.includes('轻松')
+  const audience = inferRouteAudience(option, index)
+  const isRelaxed = isRelaxedPace(option.pace) || audience === 'repeat-visitor'
+  const comfortScore = isRelaxed ? 8.8 : 7.2
+  const densityScore = isRelaxed ? 6.8 : 8.6
+  const coverageScore = estimateCoverageScore(option)
+  const foodScore = estimateFoodScore(option)
+  const keywords = routeKeywords(option)
   return {
     id: letter,
     title: option.title,
     subtitle: option.pace,
     price: option.estimated_budget,
     metrics: [
-      { level: scoreToLevel(option.photo_score), label: `出片指数 · ${option.photo_score >= 8 ? '高' : option.photo_score >= 6 ? '中' : '低'} (${option.photo_score}/10)` },
-      { level: isRelaxed ? 'high' : 'mid', label: `轻松程度 · ${isRelaxed ? '高' : '中'}` },
-      { level: isRelaxed ? 'mid' : 'high', label: `节奏密度 · ${isRelaxed ? '中低' : '高'}` },
-      { level: 'high', label: '美食覆盖 · 高' },
+      { level: scoreToLevel(option.photo_score), label: `出片指数 · ${scoreLabel(option.photo_score)} (${formatScore(option.photo_score)}/10)` },
+      { level: scoreToLevel(comfortScore), label: `轻松程度 · ${scoreLabel(comfortScore)} (${formatScore(comfortScore)}/10)` },
+      { level: scoreToLevel(densityScore), label: `节奏密度 · ${isRelaxed ? '中低' : '高'} (${formatScore(densityScore)}/10)` },
+      { level: scoreToLevel(foodScore), label: `美食覆盖 · ${scoreLabel(foodScore)} (${formatScore(foodScore)}/10)` },
     ],
     description: option.summary,
+    summaryStats: routeStats(option, audience, isRelaxed),
+    differentiators: [
+      firstSpotNames(option) ? `核心动线：${firstSpotNames(option)}` : '',
+      keywords.length > 0 ? `内容侧重：${keywords.join(' / ')}` : '',
+      audience === 'first-timer'
+        ? '差异重点：经典地标优先，降低首次决策成本。'
+        : '差异重点：减少重复经典点，增加小众机位和慢体验。',
+    ].filter(Boolean),
+    scoreBreakdown: [
+      {
+        label: '出片',
+        score: `${formatScore(option.photo_score)}/10`,
+        reason: '参考景观点位、观景/日落/机位词和真实 POI 组合。',
+      },
+      {
+        label: '舒适',
+        score: `${formatScore(comfortScore)}/10`,
+        reason: isRelaxed ? '节奏更松，日均点位压力更低。' : '覆盖更满，需要接受更密集转场。',
+      },
+      {
+        label: '覆盖',
+        score: `${formatScore(coverageScore)}/10`,
+        reason: '按天数、点位数和主题覆盖估算。',
+      },
+      {
+        label: '美食',
+        score: `${formatScore(foodScore)}/10`,
+        reason: '基于路线文本中的餐饮/街区/夜市等信号估算。',
+      },
+    ],
+    bestFor: audience === 'first-timer'
+      ? '适合第一次来、旅行次数不多、希望经典点位尽量多覆盖的人。'
+      : '适合已经来过、旅行经验较多、想要小众机位和慢体验的人。',
+    tradeoff: audience === 'first-timer'
+      ? '取舍：节奏更紧，建议提前确认体力和交通。'
+      : '取舍：经典点位覆盖略少，但体验更松、重复感更低。',
   }
 }
 
@@ -169,9 +288,7 @@ async function createGeneratedTripContent(tripId: string, option: RouteOption): 
         style: outfit.style,
         items: outfit.items,
         tips: outfit.tips,
-        images: [
-          outfitPhotoUrl(`${tripId}-${outfit.gender}-${outfit.style}`, outfit.scene, outfit.style, outfit.gender),
-        ],
+        images: [],
       }),
     ),
   )
@@ -322,6 +439,14 @@ export function ComparisonPage() {
                 onSelect={setSelected}
               />
             ))}
+          </div>
+          <div className="score-method-card">
+            <h4>评分怎么来的？</h4>
+            <p>
+              当前综合参考四类信号：出片潜力 40%（观景/日落/机位/自然风光等 POI），
+              节奏舒适 25%（日均点位和路线 pace），主题覆盖 20%（经典地标、自然、街区等丰富度），
+              旅行实用 15%（美食、休息和转场可执行性）。分数用于比较方案差异，不是绝对排名。
+            </p>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button

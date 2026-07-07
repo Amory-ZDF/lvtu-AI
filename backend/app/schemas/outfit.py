@@ -27,6 +27,10 @@ class OutfitRecommendationUpdate(BaseModel):
     images: list[str] | None = None
 
 
+class OutfitPreviewImageRequest(BaseModel):
+    force: bool = False
+
+
 class OutfitRecommendationRead(ORMModel):
     id: UUID
     trip_id: UUID
@@ -38,3 +42,11 @@ class OutfitRecommendationRead(ORMModel):
     images: list[str]
     created_at: datetime
     updated_at: datetime
+
+
+class OutfitPreviewImageRead(BaseModel):
+    outfit: OutfitRecommendationRead
+    image_url: str | None = None
+    provider: str
+    generated: bool
+    message: str | None = None

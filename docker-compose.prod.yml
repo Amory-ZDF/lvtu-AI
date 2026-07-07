@@ -46,6 +46,9 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       REDIS_URL: redis://redis:6379/0
+      LV_KNOWLEDGE_DATA_DIR: /data/knowledge
+    volumes:
+      - /opt/lv_private_data/processed/knowledge:/data/knowledge:ro
     depends_on:
       postgres:
         condition: service_healthy

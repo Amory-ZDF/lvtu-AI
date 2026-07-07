@@ -7,6 +7,7 @@ import { apiClient, type QueryParams } from './api'
 import type {
   OutfitRecommendation,
   OutfitRecommendationCreate,
+  OutfitPreviewImageResult,
   OutfitRecommendationUpdate,
   ListResponse,
 } from '@/types'
@@ -49,6 +50,16 @@ export function updateOutfit(
   return apiClient.patch<OutfitRecommendation>(`/outfits/${outfitId}`, payload)
 }
 
+export function generateOutfitPreviewImage(
+  outfitId: string,
+  force = true,
+): Promise<OutfitPreviewImageResult> {
+  return apiClient.post<OutfitPreviewImageResult>(
+    `/outfits/${outfitId}/preview-image`,
+    { force },
+  )
+}
+
 export function deleteOutfit(outfitId: string): Promise<void> {
   return apiClient.delete<void>(`/outfits/${outfitId}`)
 }
@@ -58,6 +69,7 @@ export const outfitService = {
   createOutfit,
   getOutfit,
   updateOutfit,
+  generateOutfitPreviewImage,
   deleteOutfit,
 }
 

@@ -10,6 +10,7 @@ from app.integrations.factory import (
     get_recommender_integration,
     get_route_planner_integration,
 )
+from app.integrations.outfit_image_generation import build_outfit_preview_prompt
 from app.integrations.placeholders import (
     MockMediaAssetIntegration,
     MockRecommendationIntegration,
@@ -154,6 +155,25 @@ def test_build_destination_prompt_no_budget() -> None:
     )
     messages = build_destination_prompt(request)
     assert "不限" in messages[1]["content"]
+
+
+def test_build_outfit_preview_prompt_is_travel_outfit_only() -> None:
+    prompt = build_outfit_preview_prompt(
+        destination_name="张家界",
+        scene="女生 · 日落 / 观景台",
+        season="按出发日期复核天气",
+        style="女生出片层次感穿搭",
+        items=[{"name": "浅色内搭", "gender": "female"}, {"name": "廓形外套"}],
+    )
+
+    assert "张家界" in prompt
+    assert "成年女生" in prompt
+    assert "成年男生" not in prompt
+    assert "不要生成男性" in prompt
+    assert "3:4 竖图" in prompt
+    assert "不要裁切头部、脚部" in prompt
+    assert "浅色内搭、廓形外套" in prompt
+    assert "不要出现文字" in prompt
 
 
 # -----------------------------
