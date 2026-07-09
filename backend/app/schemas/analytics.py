@@ -33,65 +33,53 @@ class AnalyticsIngestResponse(BaseModel):
     accepted: int
 
 
-class AnalyticsMetricCard(BaseModel):
-    key: str
-    label: str
-    value: float | int | str
-    unit: str | None = None
-    description: str
-
-
-class AnalyticsTimeseriesPoint(BaseModel):
-    date: str
-    events: int
-    page_views: int
-    visitors: int
-
-
-class AnalyticsTopPage(BaseModel):
+class AnalyticsPageStay(BaseModel):
     page_path: str
+    page_title: str | None = None
     views: int
     visitors: int
     avg_stay_seconds: float
+    p50_stay_seconds: float
 
 
-class AnalyticsButtonMetric(BaseModel):
-    label: str
+class AnalyticsPageButtonMetric(BaseModel):
     page_path: str
+    page_title: str | None = None
+    button_label: str
+    button_role: str | None = None
     clicks: int
-    visitors: int
+    click_users: int
+    page_views: int
+    click_rate: float
+    user_click_rate: float
 
 
-class AnalyticsBreakdownItem(BaseModel):
-    name: str
+class AnalyticsSelectionOption(BaseModel):
+    label: str
     count: int
     ratio: float
 
 
-class AnalyticsRecentEvent(BaseModel):
-    event_name: str
-    event_category: str
-    page_path: str
-    visitor_id: str | None = None
-    session_id: str
-    element_text: str | None = None
-    occurred_at: datetime
+class AnalyticsSelectionGroup(BaseModel):
+    key: str
+    label: str
+    total: int
+    options: list[AnalyticsSelectionOption]
 
 
 class AnalyticsFunnelStep(BaseModel):
     key: str
     label: str
     users: int
-    conversion_rate: float
+    previous_step_rate: float
+    overall_rate: float
+    dropoff_rate: float
 
 
 class AnalyticsDashboardPayload(BaseModel):
     range_days: int
     calculated_at: datetime
-    metric_cards: list[AnalyticsMetricCard]
-    timeseries: list[AnalyticsTimeseriesPoint]
-    top_pages: list[AnalyticsTopPage]
-    top_buttons: list[AnalyticsButtonMetric]
-    device_breakdown: list[AnalyticsBreakdownItem]
     funnel: list[AnalyticsFunnelStep]
-    recent_events: list[AnalyticsRecentEvent]
+    page_stays: list[AnalyticsPageStay]
+    page_buttons: list[AnalyticsPageButtonMetric]
+    selection_groups: list[AnalyticsSelectionGroup]

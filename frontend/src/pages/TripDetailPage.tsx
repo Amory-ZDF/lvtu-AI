@@ -33,7 +33,7 @@ import {
   createPackingItem,
   deletePackingItem,
 } from '@/services/trip'
-import { generateOutfitPreviewImage, listOutfits } from '@/services/outfit'
+import { createOutfit, generateOutfitPreviewImage, listOutfits } from '@/services/outfit'
 import { listSpots, deleteSpot } from '@/services/spot'
 import { createAdjustment } from '@/services/adjustment'
 import { getDestinationWeather } from '@/services/planning'
@@ -146,6 +146,104 @@ function groupOutfits(outfits: OutfitRecommendation[]) {
       items: groups[gender],
     }))
     .filter((group) => group.items.length > 0)
+}
+
+function supplementalOutfitSeeds(gender: 'female' | 'male') {
+  if (gender === 'female') {
+    return [
+      {
+        scene: '女生 · 城市漫步 / 景点拍照',
+        style: '女生轻户外舒适穿搭',
+        items: [
+          { name: '透气短上衣或衬衫', category: '上装', gender },
+          { name: '舒适长裤/半裙', category: '下装', gender },
+          { name: '防滑步行鞋', category: '鞋履', gender },
+          { name: '薄外套或防晒衣', category: '外套', gender },
+        ],
+        tips: '适合白天城市步行和景点拍照，优先兼顾舒适度与照片轮廓。',
+      },
+      {
+        scene: '女生 · 日落 / 观景台',
+        style: '女生出片层次感穿搭',
+        items: [
+          { name: '浅色内搭', category: '上装', gender },
+          { name: '有廓形的外套或针织衫', category: '外套', gender },
+          { name: '长裤/长裙', category: '下装', gender },
+          { name: '小体积斜挎包', category: '配饰', gender },
+        ],
+        tips: '适合日落、观景台和风大的场景，用外套或披肩增加层次。',
+      },
+      {
+        scene: '女生 · 美食街 / 夜游',
+        style: '女生夜游轻便出片穿搭',
+        items: [
+          { name: '修身针织或短外套', category: '上装', gender },
+          { name: '深色直筒裤/长裙', category: '下装', gender },
+          { name: '舒适低跟鞋或运动鞋', category: '鞋履', gender },
+          { name: '小包和轻量配饰', category: '配饰', gender },
+        ],
+        tips: '适合夜景、餐饮和临时加点，控制体积感，方便长时间移动。',
+      },
+    ]
+  }
+  return [
+    {
+      scene: '男生 · 城市漫步 / 景点拍照',
+      style: '男生轻户外舒适穿搭',
+      items: [
+        { name: '透气 T 恤或休闲衬衫', category: '上装', gender },
+        { name: '直筒休闲裤', category: '下装', gender },
+        { name: '防滑步行鞋', category: '鞋履', gender },
+        { name: '轻薄夹克或防晒外套', category: '外套', gender },
+      ],
+      tips: '适合城市步行、景点拍照和长时间移动，强调干净线条和实穿层次。',
+    },
+    {
+      scene: '男生 · 日落 / 观景台',
+      style: '男生出片层次感穿搭',
+      items: [
+        { name: '浅色内搭', category: '上装', gender },
+        { name: '廓形衬衫/轻夹克', category: '外套', gender },
+        { name: '深色直筒裤', category: '下装', gender },
+        { name: '小背包或斜挎包', category: '配饰', gender },
+      ],
+      tips: '适合日落和观景台场景，用外套制造轮廓，避免画面单薄。',
+    },
+    {
+      scene: '男生 · 美食街 / 夜游',
+      style: '男生夜游轻便出片穿搭',
+      items: [
+        { name: '干净纯色 T 恤/针织', category: '上装', gender },
+        { name: '深色直筒裤', category: '下装', gender },
+        { name: '轻便运动鞋', category: '鞋履', gender },
+        { name: '薄夹克或衬衫外套', category: '外套', gender },
+      ],
+      tips: '适合夜景、餐饮和临时加点，强调行动方便和镜头里的利落感。',
+    },
+  ]
+}
+
+async function ensureMinimumOutfits(
+  tripId: string,
+  existing: OutfitRecommendation[],
+): Promise<OutfitRecommendation[]> {
+  const result = [...existing]
+  for (const gender of ['female', 'male'] as const) {
+    const count = result.filter((item) => inferOutfitGender(item.style, item.scene, item.items) === gender).length
+    const missing = supplementalOutfitSeeds(gender).slice(count, 3)
+    for (const seed of missing) {
+      const created = await createOutfit(tripId, {
+        scene: seed.scene,
+        season: '按出发日期复核天气',
+        style: seed.style,
+        items: seed.items,
+        tips: seed.tips,
+        images: [],
+      })
+      result.push(created)
+    }
+  }
+  return result
 }
 
 /** PhotoSpotRecommendation → SpotCardData */
@@ -398,7 +496,14 @@ export function TripDetailPage() {
         setTrip(tripRes)
         setDays(daysRes.items)
         setPackingItems(packingRes.items)
-        setOutfits(outfitsRes.items)
+        let normalizedOutfits = outfitsRes.items
+        try {
+          normalizedOutfits = await ensureMinimumOutfits(tripId, outfitsRes.items)
+        } catch {
+          normalizedOutfits = outfitsRes.items
+        }
+        if (cancelled) return
+        setOutfits(normalizedOutfits)
         setSpots(spotsRes.items)
         // 加载每天的行程点
         const pointsMap: Record<string, TripPoint[]> = {}
@@ -628,8 +733,9 @@ export function TripDetailPage() {
     if (!instruction.trim()) return
     setAdjusting(true)
     try {
-      await createAdjustment(tripId, { instruction })
-      showToast('AI 正在根据你的要求调整行程...')
+      const job = await createAdjustment(tripId, { instruction })
+      const summary = job.output_data?.summary
+      showToast(typeof summary === 'string' ? summary : '已根据你的要求调整行程')
       // 重新加载行程天和点
       const daysRes = await listTripDays(tripId)
       setDays(daysRes.items)
@@ -1110,18 +1216,11 @@ export function TripDetailPage() {
                     {group.items.map((o) => {
                       const card = toOutfitCard(o)
                       const isGeneratingPreview = generatingOutfitId === o.id
-                      const handleOutfitCardClick = () => {
-                        if (!card.hasAiPreview) {
-                          if (!isGeneratingPreview) void handleGenerateOutfitPreview(o.id)
-                          return
-                        }
-                        openOutfitDetail(o.id)
-                      }
                       return (
                         <div
                           key={o.id}
                           className={`outfit-card${card.hasAiPreview ? ' has-preview' : ' needs-preview'}${isGeneratingPreview ? ' is-generating' : ''}`}
-                          onClick={handleOutfitCardClick}
+                          onClick={() => openOutfitDetail(o.id)}
                         >
                           <div
                             className={`outfit-visual${card.hasAiPreview ? ' has-preview' : ' needs-preview'}${isGeneratingPreview ? ' is-generating' : ''}`}
@@ -1129,18 +1228,47 @@ export function TripDetailPage() {
                           >
                             <span className="scene-tag">{card.sceneTag}</span>
                             {card.genderLabel && <span className="gender-tag">{card.genderLabel}</span>}
-                            <span className={card.hasAiPreview ? 'ai-preview-tag' : 'outfit-preview-hint'}>
-                              {isGeneratingPreview
-                                ? '正在生成...'
-                                : card.hasAiPreview
-                                  ? 'AI 预览'
-                                  : '点击生成 AI 预览'}
-                            </span>
+                            {card.hasAiPreview ? (
+                              <span className="ai-preview-tag">AI 预览</span>
+                            ) : (
+                              <button
+                                className="outfit-preview-hint"
+                                type="button"
+                                disabled={isGeneratingPreview}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  if (!isGeneratingPreview) void handleGenerateOutfitPreview(o.id)
+                                }}
+                              >
+                                {isGeneratingPreview ? '正在生成...' : '点击生成 AI 预览'}
+                              </button>
+                            )}
                             {card.emoji && <span className="emoji">{card.emoji}</span>}
                           </div>
                           <div className="outfit-body">
                             <h5>{card.title}</h5>
                             <p>{card.desc}</p>
+                            <div className="outfit-actions">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  openOutfitDetail(o.id)
+                                }}
+                              >
+                                查看详情
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isGeneratingPreview}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  void handleGenerateOutfitPreview(o.id)
+                                }}
+                              >
+                                {card.hasAiPreview ? '重新生成预览' : '生成预览'}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )

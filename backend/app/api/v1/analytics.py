@@ -2,33 +2,31 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.responses import success_response
 from app.core.config import Settings, get_settings
-from app.core.exceptions import AppException
 from app.db.session import get_db_session
 from app.middleware.auth import get_current_user, get_current_user_optional
 from app.models.analytics_event import AnalyticsEvent
 from app.models.user import User
 from app.schemas.analytics import (
-    AnalyticsBreakdownItem,
-    AnalyticsButtonMetric,
     AnalyticsDashboardPayload,
     AnalyticsEventCreate,
     AnalyticsFunnelStep,
     AnalyticsIngestRequest,
     AnalyticsIngestResponse,
-    AnalyticsMetricCard,
-    AnalyticsRecentEvent,
-    AnalyticsTimeseriesPoint,
-    AnalyticsTopPage,
+    AnalyticsPageButtonMetric,
+    AnalyticsPageStay,
+    AnalyticsSelectionGroup,
+    AnalyticsSelectionOption,
 )
 from app.schemas.common import ApiResponse
+from app.services.analytics_admin_service import ensure_analytics_admin
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_db_session)]
@@ -85,24 +83,39 @@ def _avg(values: list[int | float]) -> float:
     return round(sum(values) / len(values), 2) if values else 0.0
 
 
+def _median(values: list[int | float]) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return round(float(ordered[mid]), 2)
+    return round((ordered[mid - 1] + ordered[mid]) / 2, 2)
+
+
 def _ratio(numerator: int, denominator: int) -> float:
     return round(numerator / denominator, 4) if denominator else 0.0
 
 
-def _ensure_analytics_admin(user: User, settings: Settings) -> None:
-    allowed_emails = {email.lower() for email in settings.analytics_admin_emails}
-    if allowed_emails and user.email.lower() not in allowed_emails:
-        raise AppException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            code="analytics_forbidden",
-            message="当前账号无权访问数据中台",
-        )
-    if settings.app_env == "production" and not allowed_emails:
-        raise AppException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            code="analytics_admin_not_configured",
-            message="生产环境需要配置 ANALYTICS_ADMIN_EMAILS 后才能查看数据中台",
-        )
+def _metadata(event: AnalyticsEvent) -> dict[str, Any]:
+    return event.metadata_ or {}
+
+
+def _metadata_text(event: AnalyticsEvent, keys: list[str]) -> str | None:
+    metadata = _metadata(event)
+    for key in keys:
+        value = metadata.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _page_title_by_path(events: list[AnalyticsEvent]) -> dict[str, str]:
+    titles: dict[str, str] = {}
+    for event in events:
+        if event.page_title and event.page_path not in titles:
+            titles[event.page_path] = event.page_title
+    return titles
 
 
 @router.post("/events", response_model=ApiResponse[AnalyticsIngestResponse])
@@ -134,7 +147,7 @@ def get_analytics_dashboard(
     current_user: CurrentUser,
     days: int = Query(default=7, ge=1, le=90),
 ) -> ApiResponse[AnalyticsDashboardPayload]:
-    _ensure_analytics_admin(current_user, settings)
+    ensure_analytics_admin(current_user, settings, db)
     now = datetime.now(UTC)
     start = now - timedelta(days=days)
     events = list(
@@ -147,160 +160,13 @@ def get_analytics_dashboard(
 
     page_views = [event for event in events if event.event_name == "page_view"]
     click_events = [event for event in events if event.event_category == "click"]
-    stay_events = [
-        event.duration_ms
-        for event in events
-        if event.duration_ms is not None and event.event_name in {"page_leave", "page_heartbeat"}
-    ]
-    session_duration: dict[str, int] = defaultdict(int)
-    for event in events:
-        if event.duration_ms is not None and event.event_name in {"page_leave", "page_heartbeat"}:
-            session_duration[event.session_id] += event.duration_ms
-
-    visitors = {_actor_key(event) for event in events}
-    sessions = {event.session_id for event in events}
-    active_users = {str(event.user_id) for event in events if event.user_id}
-    ctr = _ratio(len(click_events), len(page_views))
-
-    metric_cards = [
-        AnalyticsMetricCard(
-            key="unique_visitors",
-            label="访客数 UV",
-            value=len(visitors),
-            description="按登录用户、visitor_id 或 session_id 去重",
-        ),
-        AnalyticsMetricCard(
-            key="sessions",
-            label="访问会话",
-            value=len(sessions),
-            description="按 session_id 去重",
-        ),
-        AnalyticsMetricCard(
-            key="page_views",
-            label="页面浏览 PV",
-            value=len(page_views),
-            description="page_view 事件总数",
-        ),
-        AnalyticsMetricCard(
-            key="avg_stay_seconds",
-            label="平均停留",
-            value=round(_avg(stay_events) / 1000, 1),
-            unit="秒",
-            description="page_leave/page_heartbeat 的 duration_ms 均值",
-        ),
-        AnalyticsMetricCard(
-            key="click_through_rate",
-            label="点击率",
-            value=round(ctr * 100, 1),
-            unit="%",
-            description="按钮/链接点击次数 ÷ 页面浏览次数",
-        ),
-        AnalyticsMetricCard(
-            key="active_users",
-            label="登录用户",
-            value=len(active_users),
-            description="产生事件的登录用户数",
-        ),
-        AnalyticsMetricCard(
-            key="avg_session_seconds",
-            label="平均会话时长",
-            value=round(_avg(list(session_duration.values())) / 1000, 1),
-            unit="秒",
-            description="每个 session 内停留时长求和后取均值",
-        ),
-        AnalyticsMetricCard(
-            key="total_events",
-            label="事件总量",
-            value=len(events),
-            description="当前时间窗口内入库埋点数",
-        ),
-    ]
-
-    daily: dict[str, dict[str, set | int]] = {}
-    for offset in range(days - 1, -1, -1):
-        date = (now - timedelta(days=offset)).date().isoformat()
-        daily[date] = {"events": 0, "page_views": 0, "visitors": set()}
-    for event in events:
-        date = event.occurred_at.date().isoformat()
-        if date not in daily:
-            daily[date] = {"events": 0, "page_views": 0, "visitors": set()}
-        daily[date]["events"] = int(daily[date]["events"]) + 1
-        if event.event_name == "page_view":
-            daily[date]["page_views"] = int(daily[date]["page_views"]) + 1
-        daily[date]["visitors"].add(_actor_key(event))  # type: ignore[union-attr]
-
-    timeseries = [
-        AnalyticsTimeseriesPoint(
-            date=date,
-            events=int(values["events"]),
-            page_views=int(values["page_views"]),
-            visitors=len(values["visitors"]),  # type: ignore[arg-type]
-        )
-        for date, values in sorted(daily.items())
-    ]
-
-    page_stats: dict[str, dict[str, object]] = defaultdict(
-        lambda: {"views": 0, "visitors": set(), "durations": []}
-    )
-    for event in events:
-        stats = page_stats[event.page_path]
-        stats["visitors"].add(_actor_key(event))  # type: ignore[union-attr]
-        if event.event_name == "page_view":
-            stats["views"] = int(stats["views"]) + 1
-        if event.duration_ms is not None and event.event_name in {"page_leave", "page_heartbeat"}:
-            stats["durations"].append(event.duration_ms)  # type: ignore[union-attr]
-    top_pages = sorted(
-        [
-            AnalyticsTopPage(
-                page_path=page_path,
-                views=int(stats["views"]),
-                visitors=len(stats["visitors"]),  # type: ignore[arg-type]
-                avg_stay_seconds=round(_avg(stats["durations"]) / 1000, 1),  # type: ignore[arg-type]
-            )
-            for page_path, stats in page_stats.items()
-            if int(stats["views"]) > 0
-        ],
-        key=lambda item: item.views,
-        reverse=True,
-    )[:10]
-
-    button_stats: dict[tuple[str, str], dict[str, object]] = defaultdict(
-        lambda: {"clicks": 0, "visitors": set()}
-    )
-    for event in click_events:
-        label = event.element_text or event.element_role or "未命名控件"
-        key = (label, event.page_path)
-        button_stats[key]["clicks"] = int(button_stats[key]["clicks"]) + 1
-        button_stats[key]["visitors"].add(_actor_key(event))  # type: ignore[union-attr]
-    top_buttons = sorted(
-        [
-            AnalyticsButtonMetric(
-                label=label,
-                page_path=page_path,
-                clicks=int(stats["clicks"]),
-                visitors=len(stats["visitors"]),  # type: ignore[arg-type]
-            )
-            for (label, page_path), stats in button_stats.items()
-        ],
-        key=lambda item: item.clicks,
-        reverse=True,
-    )[:10]
-
-    devices = Counter(event.device_type or "unknown" for event in events)
-    device_breakdown = [
-        AnalyticsBreakdownItem(
-            name=name,
-            count=count,
-            ratio=_ratio(count, len(events)),
-        )
-        for name, count in devices.most_common()
-    ]
+    page_titles = _page_title_by_path(events)
 
     funnel_definitions = [
         ("home_view", "访问首页", lambda e: e.event_name == "page_view" and e.page_path == "/"),
         (
             "start_view",
-            "进入规划页",
+            "进入偏好输入页",
             lambda e: e.event_name == "page_view" and e.page_path == "/start",
         ),
         (
@@ -308,7 +174,17 @@ def get_analytics_dashboard(
             "生成目的地推荐",
             lambda e: e.event_name == "destination_recommendation_success",
         ),
-        ("route_success", "生成路线", lambda e: e.event_name == "route_generation_success"),
+        (
+            "destination_selected",
+            "选择目的地",
+            lambda e: e.event_name == "destination_selected",
+        ),
+        ("route_success", "生成路线方案", lambda e: e.event_name == "route_generation_success"),
+        (
+            "route_confirmed",
+            "确认路线方案",
+            lambda e: e.event_name in {"route_option_confirmed", "trip_created"},
+        ),
         (
             "trip_detail_view",
             "进入行程详情",
@@ -321,42 +197,153 @@ def get_analytics_dashboard(
         ),
     ]
     first_users = 0
+    previous_users = 0
     funnel: list[AnalyticsFunnelStep] = []
     for key, label, predicate in funnel_definitions:
         users = {_actor_key(event) for event in events if predicate(event)}
         if not funnel:
             first_users = len(users)
+            previous_users = len(users)
+        current_users = len(users)
+        previous_rate = 1.0 if not funnel else _ratio(current_users, previous_users)
+        dropoff_rate = max(0.0, round(1 - previous_rate, 4))
         funnel.append(
             AnalyticsFunnelStep(
                 key=key,
                 label=label,
-                users=len(users),
-                conversion_rate=_ratio(len(users), first_users),
+                users=current_users,
+                previous_step_rate=previous_rate,
+                overall_rate=_ratio(current_users, first_users),
+                dropoff_rate=dropoff_rate,
             )
         )
+        previous_users = current_users
 
-    recent_events = [
-        AnalyticsRecentEvent(
-            event_name=event.event_name,
-            event_category=event.event_category,
-            page_path=event.page_path,
-            visitor_id=event.visitor_id,
-            session_id=event.session_id,
-            element_text=event.element_text,
-            occurred_at=event.occurred_at,
+    page_stats: dict[str, dict[str, object]] = defaultdict(
+        lambda: {"views": 0, "visitors": set(), "durations": []}
+    )
+    for event in events:
+        stats = page_stats[event.page_path]
+        stats["visitors"].add(_actor_key(event))  # type: ignore[union-attr]
+        if event.event_name == "page_view":
+            stats["views"] = int(stats["views"]) + 1
+        if event.duration_ms is not None and event.event_name in {"page_leave", "page_heartbeat"}:
+            stats["durations"].append(event.duration_ms)  # type: ignore[union-attr]
+
+    page_stays = sorted(
+        [
+            AnalyticsPageStay(
+                page_path=page_path,
+                page_title=page_titles.get(page_path),
+                views=int(stats["views"]),
+                visitors=len(stats["visitors"]),  # type: ignore[arg-type]
+                avg_stay_seconds=round(_avg(stats["durations"]) / 1000, 1),  # type: ignore[arg-type]
+                p50_stay_seconds=round(_median(stats["durations"]) / 1000, 1),  # type: ignore[arg-type]
+            )
+            for page_path, stats in page_stats.items()
+            if int(stats["views"]) > 0
+        ],
+        key=lambda item: item.views,
+        reverse=True,
+    )
+
+    page_view_count = Counter(event.page_path for event in page_views)
+    page_visitor_sets: dict[str, set[str]] = defaultdict(set)
+    for event in page_views:
+        page_visitor_sets[event.page_path].add(_actor_key(event))
+
+    button_stats: dict[tuple[str, str, str | None], dict[str, object]] = defaultdict(
+        lambda: {"clicks": 0, "users": set()}
+    )
+    for event in click_events:
+        label = event.element_text or event.element_role or "未命名控件"
+        key = (event.page_path, label, event.element_role)
+        button_stats[key]["clicks"] = int(button_stats[key]["clicks"]) + 1
+        button_stats[key]["users"].add(_actor_key(event))  # type: ignore[union-attr]
+
+    page_buttons = sorted(
+        [
+            AnalyticsPageButtonMetric(
+                page_path=page_path,
+                page_title=page_titles.get(page_path),
+                button_label=label,
+                button_role=role,
+                clicks=int(stats["clicks"]),
+                click_users=len(stats["users"]),  # type: ignore[arg-type]
+                page_views=page_view_count.get(page_path, 0),
+                click_rate=_ratio(int(stats["clicks"]), page_view_count.get(page_path, 0)),
+                user_click_rate=_ratio(
+                    len(stats["users"]),  # type: ignore[arg-type]
+                    len(page_visitor_sets.get(page_path, set())),
+                ),
+            )
+            for (page_path, label, role), stats in button_stats.items()
+        ],
+        key=lambda item: (item.page_path, -item.clicks, item.button_label),
+    )
+
+    def build_selection_group(
+        key: str,
+        label: str,
+        counter: Counter[str],
+    ) -> AnalyticsSelectionGroup:
+        total = sum(counter.values())
+        return AnalyticsSelectionGroup(
+            key=key,
+            label=label,
+            total=total,
+            options=[
+                AnalyticsSelectionOption(
+                    label=name,
+                    count=count,
+                    ratio=_ratio(count, total),
+                )
+                for name, count in counter.most_common(10)
+            ],
         )
-        for event in sorted(events, key=lambda item: item.occurred_at, reverse=True)[:30]
+
+    destination_counter: Counter[str] = Counter()
+    route_selected_counter: Counter[str] = Counter()
+    route_confirmed_counter: Counter[str] = Counter()
+    interest_counter: Counter[str] = Counter()
+
+    for event in events:
+        if event.event_name == "destination_selected":
+            destination = _metadata_text(event, ["destination_name", "selection_label"])
+            if destination:
+                destination_counter[destination] += 1
+        elif event.event_name == "route_option_selected":
+            route = _metadata_text(event, ["route_title", "selection_label", "option_id"])
+            if route:
+                route_selected_counter[route] += 1
+        elif event.event_name == "route_option_confirmed":
+            route = _metadata_text(event, ["route_title", "selection_label", "option_id"])
+            if route:
+                route_confirmed_counter[route] += 1
+
+        interests = _metadata(event).get("interests")
+        if isinstance(interests, list):
+            for interest in interests:
+                if isinstance(interest, str) and interest.strip():
+                    interest_counter[interest.strip()] += 1
+
+    selection_groups = [
+        build_selection_group("destination_selected", "目的地选择占比", destination_counter),
+        build_selection_group("route_option_selected", "路线方案点击占比", route_selected_counter),
+        build_selection_group(
+            "route_option_confirmed",
+            "最终方案确认占比",
+            route_confirmed_counter,
+        ),
+        build_selection_group("interest_selected", "兴趣偏好选择占比", interest_counter),
     ]
 
     data = AnalyticsDashboardPayload(
         range_days=days,
         calculated_at=now,
-        metric_cards=metric_cards,
-        timeseries=timeseries,
-        top_pages=top_pages,
-        top_buttons=top_buttons,
-        device_breakdown=device_breakdown,
         funnel=funnel,
-        recent_events=recent_events,
+        page_stays=page_stays,
+        page_buttons=page_buttons,
+        selection_groups=selection_groups,
     )
     return success_response(data, request)

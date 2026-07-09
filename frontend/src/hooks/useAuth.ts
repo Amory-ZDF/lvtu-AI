@@ -7,7 +7,7 @@ import { useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { authService } from '@/services/auth'
-import type { LoginRequest, RegisterRequest } from '@/types'
+import type { DataCenterLoginRequest, LoginRequest, RegisterRequest } from '@/types'
 
 export interface UseAuthReturn {
   user: ReturnType<typeof useAuthStore.getState>['user']
@@ -15,6 +15,7 @@ export interface UseAuthReturn {
   isLoading: boolean
 
   login: (payload: LoginRequest) => Promise<void>
+  dataCenterLogin: (payload: DataCenterLoginRequest) => Promise<void>
   register: (payload: RegisterRequest) => Promise<void>
   logout: () => void
   checkAuth: () => Promise<boolean>
@@ -35,6 +36,15 @@ export function useAuth(): UseAuthReturn {
   const login = useCallback(
     async (payload: LoginRequest) => {
       const res = await authService.login(payload)
+      setAuth(res.user, res.token)
+    },
+    [setAuth],
+  )
+
+  /** 数据中台登录 */
+  const dataCenterLogin = useCallback(
+    async (payload: DataCenterLoginRequest) => {
+      const res = await authService.dataCenterLogin(payload)
       setAuth(res.user, res.token)
     },
     [setAuth],
@@ -94,6 +104,7 @@ export function useAuth(): UseAuthReturn {
     isAuthenticated,
     isLoading,
     login,
+    dataCenterLogin,
     register,
     logout,
     checkAuth,

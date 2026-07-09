@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import get_settings
 from app.db.base import *  # noqa: F403
 from app.db.session import get_db_session
 from app.main import app
@@ -92,52 +93,140 @@ def test_dashboard_requires_login() -> None:
         assert response.status_code == 401
 
 
-def test_dashboard_aggregates_core_metrics() -> None:
-    with _build_client() as client:
-        token = _register_user(client)
-        headers = {"Authorization": f"Bearer {token}"}
-        ingest = client.post(
-            "/api/v1/analytics/events",
-            headers=headers,
-            json={
-                "events": [
-                    {
-                        "visitor_id": "visitor-1",
-                        "session_id": "session-1",
-                        "event_name": "page_view",
-                        "event_category": "page",
-                        "page_path": "/",
-                        "device_type": "desktop",
-                    },
-                    {
-                        "visitor_id": "visitor-1",
-                        "session_id": "session-1",
-                        "event_name": "button_click",
-                        "event_category": "click",
-                        "page_path": "/",
-                        "element_text": "开始你的行程",
-                        "device_type": "desktop",
-                    },
-                    {
-                        "visitor_id": "visitor-1",
-                        "session_id": "session-1",
-                        "event_name": "page_leave",
-                        "event_category": "engagement",
-                        "page_path": "/",
-                        "duration_ms": 30000,
-                        "device_type": "desktop",
-                    },
-                ]
-            },
-        )
-        assert ingest.status_code == 200
+def test_dashboard_rejects_non_whitelisted_user(monkeypatch) -> None:
+    monkeypatch.setenv("ANALYTICS_ADMIN_EMAILS", "other@example.com")
+    get_settings.cache_clear()
+    try:
+        with _build_client() as client:
+            token = _register_user(client)
+            response = client.get(
+                "/api/v1/analytics/dashboard",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert response.status_code == 403
+            assert response.json()["error"]["code"] == "analytics_forbidden"
+    finally:
+        get_settings.cache_clear()
 
-        response = client.get("/api/v1/analytics/dashboard", headers=headers)
-        assert response.status_code == 200
-        data = response.json()["data"]
-        cards = {card["key"]: card["value"] for card in data["metric_cards"]}
-        assert cards["unique_visitors"] == 1
-        assert cards["page_views"] == 1
-        assert cards["avg_stay_seconds"] == 30
-        assert data["top_buttons"][0]["label"] == "开始你的行程"
-        assert data["top_pages"][0]["page_path"] == "/"
+
+def test_dashboard_returns_standard_product_analytics(monkeypatch) -> None:
+    monkeypatch.setenv("ANALYTICS_ADMIN_EMAILS", "analytics@example.com")
+    get_settings.cache_clear()
+    try:
+        with _build_client() as client:
+            token = _register_user(client)
+            headers = {"Authorization": f"Bearer {token}"}
+            ingest = client.post(
+                "/api/v1/analytics/events",
+                headers=headers,
+                json={
+                    "events": [
+                        {
+                            "visitor_id": "visitor-1",
+                            "session_id": "session-1",
+                            "event_name": "page_view",
+                            "event_category": "page",
+                            "page_path": "/",
+                            "device_type": "desktop",
+                        },
+                        {
+                            "visitor_id": "visitor-1",
+                            "session_id": "session-1",
+                            "event_name": "button_click",
+                            "event_category": "click",
+                            "page_path": "/",
+                            "element_text": "开始你的行程",
+                            "device_type": "desktop",
+                        },
+                        {
+                            "visitor_id": "visitor-1",
+                            "session_id": "session-1",
+                            "event_name": "destination_recommendation_success",
+                            "event_category": "conversion",
+                            "page_path": "/start",
+                            "metadata": {
+                                "interests": ["自然", "拍照"],
+                            },
+                            "device_type": "desktop",
+                        },
+                        {
+                            "visitor_id": "visitor-1",
+                            "session_id": "session-1",
+                            "event_name": "destination_selected",
+                            "event_category": "selection",
+                            "page_path": "/destinations",
+                            "metadata": {
+                                "destination_name": "大理",
+                                "selection_label": "大理",
+                            },
+                            "device_type": "desktop",
+                        },
+                        {
+                            "visitor_id": "visitor-1",
+                            "session_id": "session-1",
+                            "event_name": "route_option_selected",
+                            "event_category": "selection",
+                            "page_path": "/comparison",
+                            "metadata": {
+                                "option_id": "A",
+                                "route_title": "经典路线",
+                            },
+                            "device_type": "desktop",
+                        },
+                        {
+                            "visitor_id": "visitor-1",
+                            "session_id": "session-1",
+                            "event_name": "route_option_confirmed",
+                            "event_category": "selection",
+                            "page_path": "/comparison",
+                            "metadata": {
+                                "option_id": "A",
+                                "route_title": "经典路线",
+                            },
+                            "device_type": "desktop",
+                        },
+                        {
+                            "visitor_id": "visitor-1",
+                            "session_id": "session-1",
+                            "event_name": "page_leave",
+                            "event_category": "engagement",
+                            "page_path": "/",
+                            "duration_ms": 30000,
+                            "device_type": "desktop",
+                        },
+                    ]
+                },
+            )
+            assert ingest.status_code == 200
+
+            response = client.get("/api/v1/analytics/dashboard", headers=headers)
+            assert response.status_code == 200
+            data = response.json()["data"]
+            assert "metric_cards" not in data
+            assert "device_breakdown" not in data
+            assert "recent_events" not in data
+
+            assert data["funnel"][0]["key"] == "home_view"
+            assert data["funnel"][0]["users"] == 1
+            assert data["funnel"][2]["key"] == "destination_success"
+            assert data["funnel"][2]["users"] == 1
+
+            page = data["page_stays"][0]
+            assert page["page_path"] == "/"
+            assert page["views"] == 1
+            assert page["avg_stay_seconds"] == 30
+            assert page["p50_stay_seconds"] == 30
+
+            button = data["page_buttons"][0]
+            assert button["button_label"] == "开始你的行程"
+            assert button["clicks"] == 1
+            assert button["page_views"] == 1
+            assert button["click_rate"] == 1
+
+            groups = {group["key"]: group for group in data["selection_groups"]}
+            assert groups["destination_selected"]["options"][0]["label"] == "大理"
+            assert groups["route_option_selected"]["options"][0]["label"] == "经典路线"
+            assert groups["route_option_confirmed"]["options"][0]["label"] == "经典路线"
+            assert groups["interest_selected"]["options"][0]["count"] == 1
+    finally:
+        get_settings.cache_clear()

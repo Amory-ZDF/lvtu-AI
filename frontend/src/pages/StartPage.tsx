@@ -135,6 +135,7 @@ export function StartPage() {
             metadata: {
               destination_count: parsed.destinations.length,
               duration_days: payload.duration_days,
+              interests: payload.interests,
             },
           })
           setGenerating(false)
@@ -168,6 +169,7 @@ export function StartPage() {
           metadata: {
             destination_count: parsed.destinations.length,
             duration_days: payload.duration_days,
+            interests: payload.interests,
           },
         })
         showToast('推荐结果已生成')

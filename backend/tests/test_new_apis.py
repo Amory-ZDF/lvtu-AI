@@ -122,6 +122,47 @@ def test_create_outfit() -> None:
         assert data["images"] == ["https://example.com/img1.png"]
 
 
+def test_adjustment_adds_requested_place() -> None:
+    from app.api.v1 import adjustments
+
+    class DisabledAmapClient:
+        available = False
+
+    original_get_amap_client = adjustments.get_amap_client
+    adjustments.get_amap_client = lambda: DisabledAmapClient()  # type: ignore[assignment]
+    with _build_client() as client:
+        try:
+            _, trip_id = _create_user_and_trip(client)
+            day_response = client.post(
+                f"/api/v1/trips/{trip_id}/days",
+                json={"day_index": 1, "title": "第一天"},
+            )
+            day_id = day_response.json()["data"]["id"]
+            client.post(
+                f"/api/v1/trip-days/{day_id}/points",
+                json={"name": "原有景点", "point_type": "spot", "sort_order": 1},
+            )
+
+            response = client.post(
+                f"/api/v1/trips/{trip_id}/adjustments",
+                json={"instruction": "我要去广州塔"},
+            )
+
+            assert response.status_code == 201
+            payload = response.json()
+            assert payload["success"] is True
+            assert payload["data"]["output_data"]["summary"] == "已新增行程点：广州塔。"
+            changes = payload["data"]["output_data"]["changes"]
+            assert changes[0]["op"] == "add"
+            assert changes[0]["value"] == "广州塔"
+
+            points_response = client.get(f"/api/v1/trip-days/{day_id}/points")
+            points = points_response.json()["data"]["items"]
+            assert [point["name"] for point in points] == ["原有景点", "广州塔"]
+        finally:
+            adjustments.get_amap_client = original_get_amap_client
+
+
 def test_list_spots_empty() -> None:
     with _build_client() as client:
         _, trip_id = _create_user_and_trip(client)

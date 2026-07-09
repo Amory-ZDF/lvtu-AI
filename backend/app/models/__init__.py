@@ -1,3 +1,4 @@
+from app.models.analytics_admin import AnalyticsAdmin
 from app.models.analytics_event import AnalyticsEvent
 from app.models.collaborator import Collaborator
 from app.models.destination import Destination
@@ -21,6 +22,7 @@ from app.models.user_behavior import UserBehavior
 from app.models.user_preference import UserPreference
 
 __all__ = [
+    "AnalyticsAdmin",
     "AnalyticsEvent",
     "Collaborator",
     "Destination",

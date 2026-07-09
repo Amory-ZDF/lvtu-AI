@@ -66,6 +66,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+        VITE_AMAP_KEY: ${VITE_AMAP_KEY:-}
+        VITE_AMAP_SECURITY_JS_CODE: ${VITE_AMAP_SECURITY_JS_CODE:-}
+        VITE_ANALYTICS_ENABLED: ${VITE_ANALYTICS_ENABLED:-true}
     container_name: lv-frontend
     restart: unless-stopped
     networks:

@@ -105,8 +105,17 @@ export default function App() {
         <AnalyticsTracker />
         <ToastContainer />
         <Routes>
-          {/* 登录页独立于主布局 */}
+          {/* 登录页 / 数据中台独立于主布局 */}
           <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/data-center"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <AnalyticsPage />
+              </Suspense>
+            }
+          />
+          <Route path="/analytics" element={<Navigate to="/data-center" replace />} />
           {/* 主布局路由 */}
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
@@ -139,14 +148,6 @@ export default function App() {
               element={
                 <Suspense fallback={<RouteFallback />}>
                   <TripDetailPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <Suspense fallback={<RouteFallback />}>
-                  <AnalyticsPage />
                 </Suspense>
               }
             />

@@ -91,6 +91,7 @@ export function DestinationsPage() {
           metadata: {
             destination_count: data.destinations.length,
             duration_days: payload.duration_days,
+            interests: payload.interests,
           },
         })
       })
@@ -110,8 +111,20 @@ export function DestinationsPage() {
     setBatchIndex(0)
   }, [destinations])
 
-  const handleCompare = (id: string) => {
+  const handleCompare = (id: string, action: 'compare' | 'generate_route' = 'compare') => {
     const item = destinations?.destinations.find((d) => d.id === id)
+    if (item) {
+      trackAnalyticsEvent({
+        event_name: 'destination_selected',
+        event_category: 'selection',
+        metadata: {
+          destination_id: id,
+          destination_name: item.name,
+          selection_label: item.name,
+          action,
+        },
+      })
+    }
     navigate('/comparison', {
       state: { destination: item ? toPreview(item, 0) : null, destinationName: item?.name },
     })
@@ -119,7 +132,7 @@ export function DestinationsPage() {
 
   const handleGenerate = (id: string) => {
     showToast('先生成真实路线方案，再创建完整行程')
-    handleCompare(id)
+    handleCompare(id, 'generate_route')
   }
 
   const handleRefresh = () => {

@@ -268,6 +268,18 @@ async function createGeneratedTripContent(tripId: string, option: RouteOption): 
       tips: '女生版本在日落场景保留外套或披肩，既防风也能增加照片层次。',
     },
     {
+      gender: 'female',
+      scene: '女生 · 美食街 / 夜游',
+      style: '女生夜游轻便出片穿搭',
+      items: [
+        { name: '修身针织或短外套', category: '上装', gender: 'female' },
+        { name: '深色直筒裤/长裙', category: '下装', gender: 'female' },
+        { name: '舒适低跟鞋或运动鞋', category: '鞋履', gender: 'female' },
+        { name: '小包和轻量配饰', category: '配饰', gender: 'female' },
+      ],
+      tips: '女生夜游版本控制体积感，方便吃饭、步行和夜景拍照。',
+    },
+    {
       gender: 'male',
       scene: '男生 · 日落 / 观景台',
       style: '男生出片层次感穿搭',
@@ -278,6 +290,18 @@ async function createGeneratedTripContent(tripId: string, option: RouteOption): 
         { name: '小背包或斜挎包', category: '配饰', gender: 'male' },
       ],
       tips: '男生版本在观景台和日落场景用外套制造轮廓，避免单薄、也更适合风大环境。',
+    },
+    {
+      gender: 'male',
+      scene: '男生 · 美食街 / 夜游',
+      style: '男生夜游轻便出片穿搭',
+      items: [
+        { name: '干净纯色 T 恤/针织', category: '上装', gender: 'male' },
+        { name: '深色直筒裤', category: '下装', gender: 'male' },
+        { name: '轻便运动鞋', category: '鞋履', gender: 'male' },
+        { name: '薄夹克或衬衫外套', category: '外套', gender: 'male' },
+      ],
+      tips: '男生夜游版本强调干净利落和行动方便，适合夜景、餐饮和临时加点。',
     },
   ]
 
@@ -360,6 +384,22 @@ export function ComparisonPage() {
   const options: PlanOption[] =
     (routeOptions as RouteGenerationPayload | null)?.options?.map((o, i) => toPlanOption(o, i)) || []
 
+  const handleOptionSelect = (optionId: 'A' | 'B') => {
+    setSelected(optionId)
+    const optionIndex = optionId === 'A' ? 0 : 1
+    const selectedOption = (routeOptions as RouteGenerationPayload | null)?.options?.[optionIndex]
+    trackAnalyticsEvent({
+      event_name: 'route_option_selected',
+      event_category: 'selection',
+      metadata: {
+        destination_name: destinationName,
+        option_id: optionId,
+        route_title: selectedOption?.title || optionId,
+        selection_label: selectedOption?.title || optionId,
+      },
+    })
+  }
+
   const handleSelectPlan = async () => {
     if (isAuthenticated && token && !user) {
       showToast('登录态恢复中，请稍后再试')
@@ -385,11 +425,23 @@ export function ComparisonPage() {
       showToast('行程已创建，正在写入每日安排...')
       await createGeneratedTripContent(trip.id, selectedOption)
       trackAnalyticsEvent({
+        event_name: 'route_option_confirmed',
+        event_category: 'selection',
+        metadata: {
+          destination_name: destinationName,
+          option_id: selected,
+          route_title: selectedOption.title,
+          selection_label: selectedOption.title,
+        },
+      })
+      trackAnalyticsEvent({
         event_name: 'trip_created',
         event_category: 'conversion',
         metadata: {
           destination_name: destinationName,
+          option_id: selected,
           route_title: selectedOption.title,
+          selection_label: selectedOption.title,
         },
       })
       showToast('完整行程、机位、穿搭和打包清单已生成')
@@ -456,7 +508,7 @@ export function ComparisonPage() {
                 key={option.id}
                 option={option}
                 selected={selected === option.id}
-                onSelect={setSelected}
+                onSelect={handleOptionSelect}
               />
             ))}
           </div>

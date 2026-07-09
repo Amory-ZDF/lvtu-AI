@@ -22,6 +22,21 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class DataCenterLoginRequest(BaseModel):
+    email: str = Field(pattern=_EMAIL_PATTERN, max_length=255)
+
+
+class DataCenterAdminCreate(BaseModel):
+    email: str = Field(pattern=_EMAIL_PATTERN, max_length=255)
+    display_name: str | None = Field(default=None, max_length=128)
+
+
+class DataCenterAdminRead(BaseModel):
+    email: str
+    display_name: str | None = None
+    source: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

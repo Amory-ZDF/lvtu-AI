@@ -78,6 +78,11 @@
   .analytics-header,
   .analytics-actions { align-items: stretch; flex-direction: column; }
   .analytics-grid { grid-template-columns: 1fr; }
+  .analytics-row-grid,
+  .analytics-selection-grid,
+  .analytics-choice-row,
+  .funnel-metrics { grid-template-columns: 1fr; }
+  .analytics-admin-form { grid-template-columns: 1fr; }
   .analytics-row.inline { align-items: flex-start; flex-direction: column; }
 
   .detail-meta { gap: 6px; }

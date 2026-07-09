@@ -6,6 +6,9 @@
 import { apiClient } from './api'
 import type {
   AuthResponse,
+  DataCenterAdmin,
+  DataCenterAdminCreate,
+  DataCenterLoginRequest,
   LoginRequest,
   RefreshRequest,
   RegisterRequest,
@@ -29,13 +32,28 @@ export async function register(payload: RegisterRequest): Promise<AuthResponse> 
  * 这里将 email 作为 username 传入
  */
 export async function login(payload: LoginRequest): Promise<AuthResponse> {
+  return formLogin('/auth/login', payload)
+}
+
+/**
+ * 数据中台登录
+ * POST /auth/data-center/login
+ * 只需要邮箱；只有后端白名单账号可以登录成功
+ */
+export async function dataCenterLogin(
+  payload: DataCenterLoginRequest,
+): Promise<AuthResponse> {
+  return apiClient.post<AuthResponse>('/auth/data-center/login', payload, { skipAuth: true })
+}
+
+async function formLogin(path: string, payload: LoginRequest): Promise<AuthResponse> {
   const formData = new URLSearchParams()
   formData.append('username', payload.email)
   formData.append('password', payload.password)
 
   // OAuth2 form 接口需要 form-urlencoded
   const response = await fetch(
-    `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/auth/login`,
+    `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}${path}`,
     {
       method: 'POST',
       headers: {
@@ -75,9 +93,22 @@ export async function getMe(): Promise<UserProfile> {
   return apiClient.get<UserProfile>('/auth/me')
 }
 
+export async function getDataCenterAdmins(): Promise<DataCenterAdmin[]> {
+  return apiClient.get<DataCenterAdmin[]>('/auth/data-center/admins')
+}
+
+export async function addDataCenterAdmin(
+  payload: DataCenterAdminCreate,
+): Promise<DataCenterAdmin> {
+  return apiClient.post<DataCenterAdmin>('/auth/data-center/admins', payload)
+}
+
 export const authService = {
   register,
   login,
+  dataCenterLogin,
+  getDataCenterAdmins,
+  addDataCenterAdmin,
   refreshToken,
   getMe,
 }

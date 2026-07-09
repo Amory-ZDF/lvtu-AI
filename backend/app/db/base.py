@@ -1,4 +1,5 @@
 from app.models import (  # noqa: F401
+    analytics_admin,
     analytics_event,
     collaborator,
     destination_candidate,

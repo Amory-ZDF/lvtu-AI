@@ -49,7 +49,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "ai": parse_rate_limit(settings.rate_limit_ai),
         }
         prefix = settings.api_v1_prefix.rstrip("/")
-        self._auth_paths: set[str] = {f"{prefix}/auth/login", f"{prefix}/auth/register"}
+        self._auth_paths: set[str] = {
+            f"{prefix}/auth/login",
+            f"{prefix}/auth/data-center/login",
+            f"{prefix}/auth/register",
+        }
         self._ai_prefix: str = f"{prefix}/planning/"
         self._store: dict[str, list[float]] = {}
 

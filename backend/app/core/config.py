@@ -1,7 +1,8 @@
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, computed_field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -19,15 +20,15 @@ class Settings(BaseSettings):
     app_port: int = Field(default=8000, alias="APP_PORT")
     api_v1_prefix: str = Field(default="/api/v1", alias="API_V1_PREFIX")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
-    cors_allow_origins: list[str] = Field(
+    cors_allow_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"],
         alias="CORS_ALLOW_ORIGINS",
     )
-    cors_allow_methods: list[str] = Field(
+    cors_allow_methods: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
         alias="CORS_ALLOW_METHODS",
     )
-    cors_allow_headers: list[str] = Field(
+    cors_allow_headers: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["Authorization", "Content-Type", "X-Request-ID"],
         alias="CORS_ALLOW_HEADERS",
     )
@@ -88,7 +89,10 @@ class Settings(BaseSettings):
     ai_cache_ttl: int = Field(default=3600, alias="AI_CACHE_TTL")
 
     analytics_enabled: bool = Field(default=True, alias="ANALYTICS_ENABLED")
-    analytics_admin_emails: list[str] = Field(default_factory=list, alias="ANALYTICS_ADMIN_EMAILS")
+    analytics_admin_emails: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        alias="ANALYTICS_ADMIN_EMAILS",
+    )
 
     amap_api_key: str | None = Field(default=None, alias="AMAP_API_KEY")
     amap_base_url: str = Field(default="https://restapi.amap.com/v3", alias="AMAP_BASE_URL")

@@ -6,7 +6,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useI18n } from '@/hooks/useI18n'
-import type { LoginRequest, RegisterRequest } from '@/types'
+import type { DataCenterLoginRequest, LoginRequest, RegisterRequest } from '@/types'
 
 type TabMode = 'login' | 'register'
 
@@ -22,7 +22,7 @@ const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 export function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { login, register } = useAuth()
+  const { login, dataCenterLogin, register } = useAuth()
   const { t } = useI18n()
 
   const [mode, setMode] = useState<TabMode>('login')
@@ -37,16 +37,18 @@ export function LoginPage() {
   const [displayName, setDisplayName] = useState('')
 
   const redirectTarget = searchParams.get('redirect') || '/'
+  const isDataCenterLogin = redirectTarget.startsWith('/data-center')
+  const formMode: TabMode = isDataCenterLogin ? 'login' : mode
 
   const validate = (): boolean => {
     const next: FormErrors = {}
     if (!EMAIL_PATTERN.test(email)) {
       next.email = t('login.emailInvalid')
     }
-    if (password.length < 8) {
+    if (!isDataCenterLogin && password.length < 8) {
       next.password = t('login.passwordTooShort')
     }
-    if (mode === 'register') {
+    if (formMode === 'register') {
       if (!username.trim()) {
         next.username = t('login.usernameRequired')
       }
@@ -65,9 +67,14 @@ export function LoginPage() {
 
     setLoading(true)
     try {
-      if (mode === 'login') {
-        const payload: LoginRequest = { email, password }
-        await login(payload)
+      if (formMode === 'login') {
+        if (isDataCenterLogin) {
+          const payload: DataCenterLoginRequest = { email }
+          await dataCenterLogin(payload)
+        } else {
+          const payload: LoginRequest = { email, password }
+          await login(payload)
+        }
       } else {
         const payload: RegisterRequest = {
           email,
@@ -98,24 +105,30 @@ export function LoginPage() {
           {t('app.name').charAt(0)}
           <span>{t('app.name').charAt(1)}</span>
         </div>
-        <p className="login-subtitle">{t('login.subtitle')}</p>
+        <p className="login-subtitle">
+          {isDataCenterLogin
+            ? '数据中台白名单登录 · 输入授权邮箱即可进入'
+            : t('login.subtitle')}
+        </p>
 
-        <div className="login-tabs">
-          <button
-            className={`login-tab${mode === 'login' ? ' active' : ''}`}
-            onClick={() => switchMode('login')}
-            aria-label={t('login.loginTab')}
-          >
-            {t('login.loginTab')}
-          </button>
-          <button
-            className={`login-tab${mode === 'register' ? ' active' : ''}`}
-            onClick={() => switchMode('register')}
-            aria-label={t('login.registerTab')}
-          >
-            {t('login.registerTab')}
-          </button>
-        </div>
+        {!isDataCenterLogin && (
+          <div className="login-tabs">
+            <button
+              className={`login-tab${mode === 'login' ? ' active' : ''}`}
+              onClick={() => switchMode('login')}
+              aria-label={t('login.loginTab')}
+            >
+              {t('login.loginTab')}
+            </button>
+            <button
+              className={`login-tab${mode === 'register' ? ' active' : ''}`}
+              onClick={() => switchMode('register')}
+              aria-label={t('login.registerTab')}
+            >
+              {t('login.registerTab')}
+            </button>
+          </div>
+        )}
 
         {serverError && <div className="login-error">{serverError}</div>}
 
@@ -132,7 +145,7 @@ export function LoginPage() {
             {errors.email && <div className="login-form-error">{errors.email}</div>}
           </div>
 
-          {mode === 'register' && (
+          {formMode === 'register' && (
             <>
               <div className="form-group">
                 <label>{t('login.username')}</label>
@@ -162,17 +175,23 @@ export function LoginPage() {
             </>
           )}
 
-          <div className="form-group">
-            <label>{t('login.password')}</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'register' ? t('login.passwordPlaceholderRegister') : t('login.passwordPlaceholderLogin')}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            />
-            {errors.password && <div className="login-form-error">{errors.password}</div>}
-          </div>
+          {!isDataCenterLogin && (
+            <div className="form-group">
+              <label>{t('login.password')}</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={
+                  formMode === 'register'
+                    ? t('login.passwordPlaceholderRegister')
+                    : t('login.passwordPlaceholderLogin')
+                }
+                autoComplete={formMode === 'login' ? 'current-password' : 'new-password'}
+              />
+              {errors.password && <div className="login-form-error">{errors.password}</div>}
+            </div>
+          )}
 
           <button
             className="btn btn-primary btn-lg"
@@ -180,7 +199,13 @@ export function LoginPage() {
             disabled={loading}
             style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }}
           >
-            {loading ? t('login.processing') : mode === 'login' ? t('login.loginTab') : t('login.registerTab')}
+            {loading
+              ? t('login.processing')
+              : isDataCenterLogin
+                ? '进入数据中台'
+                : formMode === 'login'
+                ? t('login.loginTab')
+                : t('login.registerTab')}
           </button>
         </form>
 

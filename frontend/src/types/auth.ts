@@ -57,6 +57,24 @@ export interface LoginRequest {
   password: string
 }
 
+/** 数据中台免密登录请求 */
+export interface DataCenterLoginRequest {
+  email: string
+}
+
+/** 数据中台白名单账号 */
+export interface DataCenterAdmin {
+  email: string
+  display_name: string | null
+  source: 'env' | 'database'
+}
+
+/** 新增数据中台白名单账号 */
+export interface DataCenterAdminCreate {
+  email: string
+  display_name?: string
+}
+
 /** 刷新 token 请求 */
 export interface RefreshRequest {
   refresh_token: string

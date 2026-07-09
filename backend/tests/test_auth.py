@@ -12,6 +12,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import get_settings
 from app.db.base import *  # noqa: F403
 from app.db.session import get_db_session
 from app.main import app
@@ -76,6 +77,13 @@ def _login_user(client: TestClient, *, email: str, password: str):
     return client.post(
         "/api/v1/auth/login",
         data={"username": email, "password": password},
+    )
+
+
+def _data_center_login_user(client: TestClient, *, email: str, password: str):
+    return client.post(
+        "/api/v1/auth/data-center/login",
+        json={"email": email},
     )
 
 
@@ -170,6 +178,76 @@ def test_login_nonexistent_user() -> None:
         assert response.status_code == 401
         payload = response.json()
         assert payload["error"]["code"] == "invalid_credentials"
+
+
+def test_data_center_login_requires_whitelist(monkeypatch) -> None:
+    monkeypatch.setenv("ANALYTICS_ADMIN_EMAILS", "admin@example.com")
+    get_settings.cache_clear()
+    try:
+        with _build_client() as client:
+            _register_user(client)
+
+            response = _data_center_login_user(
+                client,
+                email="alice@example.com",
+                password="unused",
+            )
+            assert response.status_code == 403
+            assert response.json()["error"]["code"] == "analytics_forbidden"
+    finally:
+        get_settings.cache_clear()
+
+
+def test_data_center_login_allows_whitelisted_user(monkeypatch) -> None:
+    monkeypatch.setenv("ANALYTICS_ADMIN_EMAILS", "alice@example.com")
+    get_settings.cache_clear()
+    try:
+        with _build_client() as client:
+            _register_user(client)
+
+            response = _data_center_login_user(
+                client,
+                email="alice@example.com",
+                password="unused",
+            )
+            assert response.status_code == 200
+            payload = response.json()
+            assert payload["success"] is True
+            assert payload["data"]["token"]["access_token"]
+    finally:
+        get_settings.cache_clear()
+
+
+def test_data_center_admin_can_add_passwordless_account(monkeypatch) -> None:
+    monkeypatch.setenv("ANALYTICS_ADMIN_EMAILS", "alice@example.com")
+    get_settings.cache_clear()
+    try:
+        with _build_client() as client:
+            admin_login = _data_center_login_user(
+                client,
+                email="alice@example.com",
+                password="unused",
+            )
+            assert admin_login.status_code == 200
+            token = admin_login.json()["data"]["token"]["access_token"]
+
+            create = client.post(
+                "/api/v1/auth/data-center/admins",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"email": "bob@example.com", "display_name": "Bob"},
+            )
+            assert create.status_code == 200
+            assert create.json()["data"]["email"] == "bob@example.com"
+
+            bob_login = _data_center_login_user(
+                client,
+                email="bob@example.com",
+                password="unused",
+            )
+            assert bob_login.status_code == 200
+            assert bob_login.json()["data"]["user"]["email"] == "bob@example.com"
+    finally:
+        get_settings.cache_clear()
 
 
 def test_refresh_success() -> None:

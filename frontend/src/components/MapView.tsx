@@ -212,7 +212,7 @@ export function MapView({ points, center, height = 360 }: MapViewProps) {
           </div>
           <p style={{ fontSize: '0.78rem', lineHeight: 1.5, margin: 0 }}>
             {status === 'no-key'
-              ? '当前本地环境未配置 VITE_AMAP_KEY，因此先展示路线点位清单；配置高德 Web JS Key 后会自动切换为交互地图。'
+              ? '当前环境未启用高德交互地图，因此先展示路线点位清单；启用地图服务后会自动切换为可缩放、可拖拽的地图。'
               : '暂时无法加载交互地图，你仍可先按下方点位核对路线。'}
           </p>
         </div>
