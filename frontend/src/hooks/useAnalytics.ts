@@ -16,6 +16,13 @@ function readableElementText(element: HTMLElement): string {
   return element.textContent || element.id || element.tagName.toLowerCase()
 }
 
+function readableElementModule(element: HTMLElement): string | undefined {
+  if (element.dataset.analyticsModule) return element.dataset.analyticsModule
+  const parent = element.closest('[data-analytics-module]')
+  if (parent instanceof HTMLElement) return parent.dataset.analyticsModule
+  return undefined
+}
+
 function trackPageDuration(timer: PageTimer, eventName: string): void {
   const duration = Math.round(performance.now() - timer.startedAt)
   if (duration < 500) return
@@ -67,6 +74,9 @@ export function AnalyticsTracker() {
         element_role: element.dataset.analytics || element.getAttribute('role') || element.tagName.toLowerCase(),
         element_id: element.id || undefined,
         target_url: isLink ? element.href : undefined,
+        metadata: {
+          module: readableElementModule(element),
+        },
       })
     }
 

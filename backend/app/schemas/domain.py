@@ -55,7 +55,7 @@ class TripCreate(BaseModel):
     destination_name: str
     start_date: date_type | None = None
     end_date: date_type | None = None
-    status: str = "draft"
+    status: str = "upcoming"
     cover_image_url: str | None = None
     notes: str | None = None
 
@@ -186,4 +186,3 @@ class PackingItemRead(ORMModel):
     note: str | None
     created_at: datetime
     updated_at: datetime
-

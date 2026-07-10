@@ -8,15 +8,24 @@ import { LazyImage } from '@/components/LazyImage'
 interface TripCardProps {
   trip: TripCardData
   onClick?: (id: string) => void
+  editing?: boolean
+  onDelete?: (id: string) => void
 }
 
-export function TripCard({ trip, onClick }: TripCardProps) {
+function statusLabel(status: TripCardData['status']): string {
+  if (status === 'ongoing') return '旅行中'
+  if (status === 'returned') return '已返程'
+  return '待出行'
+}
+
+export function TripCard({ trip, onClick, editing = false, onDelete }: TripCardProps) {
   return (
     <div
-      className="trip-card"
-      style={{ cursor: 'pointer' }}
+      className={`trip-card${editing ? ' editing' : ''}`}
+      style={{ cursor: editing ? 'default' : 'pointer' }}
       onClick={(e) => {
         e.stopPropagation()
+        if (editing) return
         onClick?.(trip.id)
       }}
     >
@@ -33,8 +42,20 @@ export function TripCard({ trip, onClick }: TripCardProps) {
           />
         )}
         <span className={`card-status ${trip.status}`}>
-          {trip.status === 'draft' ? '草稿' : '已确认'}
+          {statusLabel(trip.status)}
         </span>
+        {editing && (
+          <button
+            className="trip-delete-btn"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete?.(trip.id)
+            }}
+          >
+            删除
+          </button>
+        )}
       </div>
       <div className="card-body">
         <h4>{trip.title}</h4>

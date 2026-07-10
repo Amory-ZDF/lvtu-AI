@@ -115,6 +115,17 @@ export function StartPage() {
     }
   }
 
+  const buildAnalyticsMetadata = (payload: DestinationRecommendationRequest) => ({
+    destination_count: undefined as number | undefined,
+    duration_days: payload.duration_days,
+    budget_min: payload.budget_min ?? undefined,
+    budget_max: payload.budget_max ?? undefined,
+    budget_label: budget,
+    departure_city: payload.departure_city,
+    season: payload.season,
+    interests: payload.interests,
+  })
+
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault()
     setGenerating(true)
@@ -133,9 +144,8 @@ export function StartPage() {
             event_name: 'destination_recommendation_success',
             event_category: 'conversion',
             metadata: {
+              ...buildAnalyticsMetadata(payload),
               destination_count: parsed.destinations.length,
-              duration_days: payload.duration_days,
-              interests: payload.interests,
             },
           })
           setGenerating(false)
@@ -167,9 +177,8 @@ export function StartPage() {
           event_name: 'destination_recommendation_success',
           event_category: 'conversion',
           metadata: {
+            ...buildAnalyticsMetadata(payload),
             destination_count: parsed.destinations.length,
-            duration_days: payload.duration_days,
-            interests: payload.interests,
           },
         })
         showToast('推荐结果已生成')

@@ -4,7 +4,7 @@
  */
 
 /** 行程状态 */
-export type TripStatus = 'draft' | 'confirmed' | 'archived'
+export type TripStatus = 'upcoming' | 'ongoing' | 'returned'
 
 /** 行程 */
 export interface Trip {

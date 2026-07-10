@@ -91,6 +91,8 @@ export function DestinationsPage() {
           metadata: {
             destination_count: data.destinations.length,
             duration_days: payload.duration_days,
+            budget_min: payload.budget_min ?? undefined,
+            budget_max: payload.budget_max ?? undefined,
             interests: payload.interests,
           },
         })

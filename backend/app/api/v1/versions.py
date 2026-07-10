@@ -136,7 +136,7 @@ def list_trip_versions(
     db: SessionDep,
     current_user: CurrentUserOptional,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=3, ge=1, le=3),
 ) -> ApiResponse:
     _get_trip_or_404(db, trip_id)
     total = (

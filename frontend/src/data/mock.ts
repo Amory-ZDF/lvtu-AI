@@ -9,7 +9,7 @@ export interface TripCardData {
   id: string
   title: string
   subtitle: string
-  status: 'draft' | 'confirmed'
+  status: 'upcoming' | 'ongoing' | 'returned'
   gradient: string
   /** 封面图 URL（存在时优先用 LazyImage 渲染，gradient 作为兜底） */
   imageUrl?: string | null

@@ -10,9 +10,10 @@ import { TripCard } from '@/components/TripCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
-import { listTrips } from '@/services/trip'
+import { deleteTrip, listTrips } from '@/services/trip'
 import type { Trip } from '@/types'
 import type { TripCardData } from '@/data/mock'
 
@@ -32,6 +33,12 @@ function pickGradient(id: string): string {
 }
 
 /** 将 Trip 映射为 TripCard 视图数据 */
+function normalizeStatus(status: string | null | undefined): TripCardData['status'] {
+  if (status === 'ongoing') return 'ongoing'
+  if (status === 'returned' || status === 'archived') return 'returned'
+  return 'upcoming'
+}
+
 function toCardData(trip: Trip): TripCardData {
   const datePart =
     trip.start_date && trip.end_date
@@ -42,7 +49,7 @@ function toCardData(trip: Trip): TripCardData {
     id: trip.id,
     title: trip.title,
     subtitle: subtitle || trip.destination_name,
-    status: trip.status === 'draft' ? 'draft' : 'confirmed',
+    status: normalizeStatus(trip.status),
     gradient: pickGradient(trip.id),
     imageUrl: trip.cover_image_url,
   }
@@ -57,6 +64,9 @@ export function HomePage() {
   const [trips, setTrips] = useState<Trip[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const loadTrips = (userId: string) => {
     setLoading(true)
@@ -75,6 +85,22 @@ export function HomePage() {
 
   const handleTripClick = (id: string) => {
     navigate(`/trips/${id}`)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (deleting) return
+    if (!user || !deleteTargetId) return
+    setDeleting(true)
+    try {
+      await deleteTrip(user.id, deleteTargetId)
+      setTrips((prev) => prev.filter((trip) => trip.id !== deleteTargetId))
+      setDeleteTargetId(null)
+      showToast('行程已删除')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : '删除行程失败')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const renderTripsSection = () => {
@@ -129,12 +155,20 @@ export function HomePage() {
     return (
       <div className="trip-cards">
         {trips.map((trip) => (
-          <TripCard key={trip.id} trip={toCardData(trip)} onClick={handleTripClick} />
+          <TripCard
+            key={trip.id}
+            trip={toCardData(trip)}
+            editing={editing}
+            onClick={handleTripClick}
+            onDelete={setDeleteTargetId}
+          />
         ))}
-        <div className="trip-card-new" onClick={() => navigate('/start')}>
-          <div className="plus">+</div>
-          <p>规划新行程</p>
-        </div>
+        {!editing && (
+          <div className="trip-card-new" onClick={() => navigate('/start')}>
+            <div className="plus">+</div>
+            <p>规划新行程</p>
+          </div>
+        )}
       </div>
     )
   }
@@ -155,11 +189,21 @@ export function HomePage() {
         <div className="section-head">
           <h2>📌 我的行程</h2>
           {isAuthenticated && trips.length > 0 && (
-            <a onClick={() => showToast('查看全部行程')}>全部 →</a>
+            <button className="section-action" onClick={() => setEditing((value) => !value)}>
+              {editing ? '完成' : '编辑'}
+            </button>
           )}
         </div>
         {renderTripsSection()}
       </section>
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="删除行程？"
+        description="删除后无法恢复，相关行程安排、机位、穿搭和打包清单都会被删除。"
+        confirmText={deleting ? '删除中...' : '确认删除'}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </div>
   )
 }

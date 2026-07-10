@@ -146,6 +146,8 @@ def test_dashboard_returns_standard_product_analytics(monkeypatch) -> None:
                             "page_path": "/start",
                             "metadata": {
                                 "interests": ["自然", "拍照"],
+                                "duration_days": 3,
+                                "budget_label": "3000-5000 元",
                             },
                             "device_type": "desktop",
                         },
@@ -214,19 +216,38 @@ def test_dashboard_returns_standard_product_analytics(monkeypatch) -> None:
             page = data["page_stays"][0]
             assert page["page_path"] == "/"
             assert page["views"] == 1
+            assert page["sessions"] == 1
             assert page["avg_stay_seconds"] == 30
             assert page["p50_stay_seconds"] == 30
+            assert page["p75_stay_seconds"] == 30
+            assert page["p90_stay_seconds"] == 30
+            assert page["p95_stay_seconds"] == 30
+            buckets = {bucket["label"]: bucket for bucket in page["duration_buckets"]}
+            assert buckets["30-60s"]["count"] == 1
+            assert page["exit_count"] == 1
 
             button = data["page_buttons"][0]
             assert button["button_label"] == "开始你的行程"
+            assert button["module"] == "home"
+            assert button["event_name"] == "button_click"
             assert button["clicks"] == 1
+            assert button["click_sessions"] == 1
             assert button["page_views"] == 1
             assert button["click_rate"] == 1
+            assert button["page_click_share"] == 1
+            assert button["session_click_rate"] == 1
+            assert button["is_key_cta"] is True
+
+            assert data["range_label"] == "近 7 天"
+            assert data["timezone"] == "Asia/Shanghai"
+            assert data["event_groups"][0]["events"] >= 1
 
             groups = {group["key"]: group for group in data["selection_groups"]}
             assert groups["destination_selected"]["options"][0]["label"] == "大理"
             assert groups["route_option_selected"]["options"][0]["label"] == "经典路线"
             assert groups["route_option_confirmed"]["options"][0]["label"] == "经典路线"
             assert groups["interest_selected"]["options"][0]["count"] == 1
+            assert groups["budget_selected"]["options"][0]["label"] == "3000-5000 元"
+            assert groups["duration_selected"]["options"][0]["label"] == "3 天"
     finally:
         get_settings.cache_clear()

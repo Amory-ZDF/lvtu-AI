@@ -81,6 +81,8 @@
   .analytics-row-grid,
   .analytics-selection-grid,
   .analytics-choice-row,
+  .analytics-button-summary,
+  .analytics-buckets,
   .funnel-metrics { grid-template-columns: 1fr; }
   .analytics-admin-form { grid-template-columns: 1fr; }
   .analytics-row.inline { align-items: flex-start; flex-direction: column; }

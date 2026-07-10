@@ -418,7 +418,7 @@ export function ComparisonPage() {
       const trip = await createTrip(user.id, {
         title: `${destinationName} · ${selectedOption.title}`,
         destination_name: destinationName,
-        status: 'draft',
+        status: 'upcoming',
         cover_image_url: cover,
         notes: selectedOption.summary,
       })

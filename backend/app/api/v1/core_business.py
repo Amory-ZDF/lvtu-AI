@@ -44,6 +44,7 @@ router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_db_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentUserOptional = Annotated[User | None, Depends(get_current_user_optional)]
+MAX_TRIP_VERSIONS = 3
 
 
 def _enforce_owner(current_user: User | None, user_id: UUID) -> None:
@@ -264,6 +265,32 @@ def _serialize_trip_snapshot(db: Session, trip_id: UUID) -> dict:
     }
 
 
+def _snapshot_for_compare(value):
+    if isinstance(value, dict):
+        return {
+            key: _snapshot_for_compare(item)
+            for key, item in value.items()
+            if key not in {"created_at", "updated_at"}
+        }
+    if isinstance(value, list):
+        return [_snapshot_for_compare(item) for item in value]
+    return value
+
+
+def _prune_trip_versions(db: Session, trip_id: UUID) -> None:
+    versions = list(
+        db.scalars(
+            select(TripVersion)
+            .where(TripVersion.trip_id == trip_id)
+            .order_by(TripVersion.version_number.desc())
+        )
+    )
+    for version in versions[MAX_TRIP_VERSIONS:]:
+        db.delete(version)
+    if len(versions) > MAX_TRIP_VERSIONS:
+        db.flush()
+
+
 def _create_version_snapshot(
     db: Session,
     trip_id: UUID,
@@ -280,6 +307,20 @@ def _create_version_snapshot(
         if not snapshot:
             return None
 
+        latest_version = db.scalar(
+            select(TripVersion)
+            .where(TripVersion.trip_id == trip_id)
+            .order_by(TripVersion.version_number.desc())
+            .limit(1)
+        )
+        if latest_version is not None and _snapshot_for_compare(
+            latest_version.snapshot
+        ) == _snapshot_for_compare(snapshot):
+            _prune_trip_versions(db, trip_id)
+            db.commit()
+            db.refresh(latest_version)
+            return latest_version
+
         max_version = db.scalar(
             select(func.max(TripVersion.version_number)).where(
                 TripVersion.trip_id == trip_id
@@ -294,6 +335,8 @@ def _create_version_snapshot(
             note=note,
         )
         db.add(version)
+        db.flush()
+        _prune_trip_versions(db, trip_id)
         db.commit()
         db.refresh(version)
         return version
@@ -426,11 +469,11 @@ def update_trip(
 ) -> ApiResponse:
     _enforce_owner(current_user, user_id)
     trip = _get_trip_or_404(db, user_id, trip_id)
+    _create_version_snapshot(db, trip_id, note="行程更新前")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(trip, field, value)
     _commit_or_409(db, "行程更新失败")
     db.refresh(trip)
-    _create_version_snapshot(db, trip_id, note="行程更新")
     return success_response(TripRead.model_validate(trip).model_dump(mode="json"), request)
 
 
@@ -556,6 +599,7 @@ def update_trip_day(
     current_user: CurrentUserOptional,
 ) -> ApiResponse:
     trip_day = _get_trip_day_or_404(db, trip_id, day_id)
+    _create_version_snapshot(db, trip_id, note="行程天更新前")
     update_data = payload.model_dump(exclude_unset=True)
     target_index = update_data.pop("day_index", None)
 
@@ -570,7 +614,6 @@ def update_trip_day(
 
     _commit_or_409(db, "行程天更新失败")
     db.refresh(trip_day)
-    _create_version_snapshot(db, trip_id, note="行程天更新")
     return success_response(TripDayRead.model_validate(trip_day).model_dump(mode="json"), request)
 
 
@@ -673,7 +716,8 @@ def reorder_trip_points(
     db: SessionDep,
     current_user: CurrentUserOptional,
 ) -> ApiResponse:
-    _get_trip_day_by_id_or_404(db, trip_day_id)
+    trip_day = _get_trip_day_by_id_or_404(db, trip_day_id)
+    _create_version_snapshot(db, trip_day.trip_id, note="行程点重排前")
     existing_points = _list_trip_points(db, trip_day_id)
     existing_ids = [item.id for item in existing_points]
     _validate_reorder_ids(payload.ordered_ids, existing_ids, "行程点排序需包含该天全部 point_id")
@@ -681,9 +725,6 @@ def reorder_trip_points(
     ordered_points = [point_map[item_id] for item_id in payload.ordered_ids]
     _reassign_order(ordered_points, "sort_order", db)
     _commit_or_409(db, "行程点重排失败")
-    trip_day = db.get(TripDay, trip_day_id)
-    if trip_day is not None:
-        _create_version_snapshot(db, trip_day.trip_id, note="行程点重排")
     return success_response(
         [TripPointRead.model_validate(p).model_dump(mode="json") for p in ordered_points],
         request,
@@ -888,4 +929,3 @@ def delete_packing_item(
     db.delete(item)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-

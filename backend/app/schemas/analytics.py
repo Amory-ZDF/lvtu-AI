@@ -33,13 +33,30 @@ class AnalyticsIngestResponse(BaseModel):
     accepted: int
 
 
+class AnalyticsDurationBucket(BaseModel):
+    label: str
+    count: int
+    ratio: float
+
+
 class AnalyticsPageStay(BaseModel):
     page_path: str
     page_title: str | None = None
     views: int
     visitors: int
+    sessions: int
     avg_stay_seconds: float
     p50_stay_seconds: float
+    p75_stay_seconds: float
+    p90_stay_seconds: float
+    p95_stay_seconds: float
+    duration_buckets: list[AnalyticsDurationBucket]
+    bounce_count: int
+    bounce_rate: float
+    exit_count: int
+    exit_rate: float
+    normal_leave_count: int
+    normal_leave_rate: float
 
 
 class AnalyticsPageButtonMetric(BaseModel):
@@ -47,11 +64,29 @@ class AnalyticsPageButtonMetric(BaseModel):
     page_title: str | None = None
     button_label: str
     button_role: str | None = None
+    event_name: str
+    module: str
     clicks: int
     click_users: int
+    click_sessions: int
     page_views: int
+    page_sessions: int
     click_rate: float
     user_click_rate: float
+    session_click_rate: float
+    page_click_share: float
+    is_key_cta: bool
+
+
+class AnalyticsEventMetric(BaseModel):
+    event_name: str
+    event_category: str
+    page_path: str
+    module: str
+    events: int
+    users: int
+    sessions: int
+    event_share: float
 
 
 class AnalyticsSelectionOption(BaseModel):
@@ -71,15 +106,20 @@ class AnalyticsFunnelStep(BaseModel):
     key: str
     label: str
     users: int
+    sessions: int
     previous_step_rate: float
     overall_rate: float
+    dropoff_users: int
     dropoff_rate: float
 
 
 class AnalyticsDashboardPayload(BaseModel):
     range_days: int
+    range_label: str
+    timezone: str
     calculated_at: datetime
     funnel: list[AnalyticsFunnelStep]
     page_stays: list[AnalyticsPageStay]
     page_buttons: list[AnalyticsPageButtonMetric]
+    event_groups: list[AnalyticsEventMetric]
     selection_groups: list[AnalyticsSelectionGroup]

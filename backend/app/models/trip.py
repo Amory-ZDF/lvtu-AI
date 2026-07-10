@@ -20,7 +20,7 @@ class Trip(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     destination_name: Mapped[str] = mapped_column(String(255))
     start_date: Mapped[date | None] = mapped_column(Date(), nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date(), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), default="draft")
+    status: Mapped[str] = mapped_column(String(32), default="upcoming")
     cover_image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
 

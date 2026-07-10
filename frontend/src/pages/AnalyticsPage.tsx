@@ -10,10 +10,15 @@ import type {
   DataCenterAdmin,
 } from '@/types'
 
-const DAY_OPTIONS = [7, 14, 30, 90]
+const DAY_OPTIONS = [7, 30, 90, 0]
 
 function formatPercent(value: number): string {
   return `${Math.round(value * 1000) / 10}%`
+}
+
+function formatSeconds(value: number): string {
+  if (value >= 60) return `${Math.round((value / 60) * 10) / 10}min`
+  return `${value}s`
 }
 
 function pageLabel(pagePath: string, pageTitle?: string | null): string {
@@ -33,6 +38,14 @@ function groupButtonsByPage(buttons: AnalyticsPageButtonMetric[]) {
     groups[key].push(item)
     return groups
   }, {})
+}
+
+function optionLabel(days: number): string {
+  return days === 0 ? '全部' : `近 ${days} 天`
+}
+
+function maxBucketCount(counts: number[]): number {
+  return Math.max(1, ...counts)
 }
 
 export function AnalyticsPage() {
@@ -97,11 +110,32 @@ export function AnalyticsPage() {
     () => groupButtonsByPage(data?.page_buttons || []),
     [data?.page_buttons],
   )
+  const topButtons = useMemo(
+    () => [...(data?.page_buttons || [])].sort((a, b) => b.clicks - a.clicks).slice(0, 8),
+    [data?.page_buttons],
+  )
+  const lowClickButtons = useMemo(
+    () =>
+      [...(data?.page_buttons || [])]
+        .filter((button) => button.page_views > 0)
+        .sort((a, b) => a.click_rate - b.click_rate || a.clicks - b.clicks)
+        .slice(0, 8),
+    [data?.page_buttons],
+  )
+  const keyCtas = useMemo(
+    () =>
+      [...(data?.page_buttons || [])]
+        .filter((button) => button.is_key_cta)
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, 8),
+    [data?.page_buttons],
+  )
   const hasAnalyticsData = Boolean(
     data && (
       data.funnel.some((step) => step.users > 0)
       || data.page_stays.length > 0
       || data.page_buttons.length > 0
+      || data.event_groups.length > 0
       || data.selection_groups.some((group) => group.total > 0)
     ),
   )
@@ -111,12 +145,15 @@ export function AnalyticsPage() {
       <div className="analytics-header">
         <div>
           <h2>📊 数据中台</h2>
-          <p className="hint">按互联网产品分析标准查看漏斗、页面停留、按钮点击率和选择占比。</p>
+          <p className="hint">
+            按互联网产品分析标准查看漏斗、页面停留分布、按钮点击比例和选择维度。
+            {data && ` 当前口径：${data.range_label} · ${data.timezone}`}
+          </p>
         </div>
         <div className="analytics-actions">
           <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
             {DAY_OPTIONS.map((option) => (
-              <option key={option} value={option}>近 {option} 天</option>
+              <option key={option} value={option}>{optionLabel(option)}</option>
             ))}
           </select>
           <button className="btn btn-secondary" onClick={loadDashboard}>
@@ -146,7 +183,7 @@ export function AnalyticsPage() {
             <div className="analytics-panel-head">
               <div>
                 <h3>转化漏斗</h3>
-                <small>按用户去重；展示相邻步骤转化、整体转化和流失率。</small>
+                <small>按用户/会话去重；展示相邻转化、整体转化、流失人数和流失率。</small>
               </div>
             </div>
             <div className="funnel-list">
@@ -155,12 +192,12 @@ export function AnalyticsPage() {
                   <div className="funnel-index">{index + 1}</div>
                   <div className="funnel-main">
                     <strong>{step.label}</strong>
-                    <span>{step.users} 人</span>
+                    <span>{step.users} 人 · {step.sessions} 会话</span>
                   </div>
                   <div className="funnel-metrics">
                     <span>上步转化 {formatPercent(step.previous_step_rate)}</span>
                     <span>整体转化 {formatPercent(step.overall_rate)}</span>
-                    <span>流失 {formatPercent(step.dropoff_rate)}</span>
+                    <span>流失 {step.dropoff_users} 人 · {formatPercent(step.dropoff_rate)}</span>
                   </div>
                 </div>
               ))}
@@ -171,16 +208,52 @@ export function AnalyticsPage() {
             <div className="analytics-panel-head">
               <div>
                 <h3>每个页面的停留时长</h3>
-                <small>页面级 PV / UV / 平均停留 / P50 停留，不展示全站平均停留。</small>
+                <small>
+                  页面级 PV / UV / 会话 / 平均 / P50 / P75 / P90 / P95，并展示停留分桶、跳出和退出。
+                </small>
               </div>
             </div>
-            <div className="analytics-table">
+            <div className="analytics-page-stay-list">
               {data.page_stays.map((page) => (
-                <div className="analytics-row analytics-row-grid" key={page.page_path}>
-                  <strong>{pageLabel(page.page_path, page.page_title)}</strong>
-                  <span>{page.page_path}</span>
-                  <span>{page.views} PV · {page.visitors} UV</span>
-                  <span>平均 {page.avg_stay_seconds}s · P50 {page.p50_stay_seconds}s</span>
+                <div className="analytics-page-stay-card" key={page.page_path}>
+                  <div className="analytics-page-stay-head">
+                    <div>
+                      <strong>{pageLabel(page.page_path, page.page_title)}</strong>
+                      <span>{page.page_path}</span>
+                    </div>
+                    <small>{page.views} PV · {page.visitors} UV · {page.sessions} 会话</small>
+                  </div>
+                  <div className="analytics-percentiles">
+                    <span>平均 {formatSeconds(page.avg_stay_seconds)}</span>
+                    <span>P50 {formatSeconds(page.p50_stay_seconds)}</span>
+                    <span>P75 {formatSeconds(page.p75_stay_seconds)}</span>
+                    <span>P90 {formatSeconds(page.p90_stay_seconds)}</span>
+                    <span>P95 {formatSeconds(page.p95_stay_seconds)}</span>
+                  </div>
+                  <div className="analytics-buckets">
+                    {page.duration_buckets.map((bucket) => (
+                      <div className="analytics-bucket" key={bucket.label}>
+                        <div className="analytics-bucket-bar">
+                          <div
+                            style={{
+                              width: `${Math.max(
+                                4,
+                                (bucket.count
+                                  / maxBucketCount(page.duration_buckets.map((b) => b.count))) * 100,
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                        <span>{bucket.label}</span>
+                        <small>{bucket.count} · {formatPercent(bucket.ratio)}</small>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="analytics-leave-types">
+                    <span>跳出 {page.bounce_count} · {formatPercent(page.bounce_rate)}</span>
+                    <span>退出 {page.exit_count} · {formatPercent(page.exit_rate)}</span>
+                    <span>继续浏览 {page.normal_leave_count} · {formatPercent(page.normal_leave_rate)}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -190,7 +263,41 @@ export function AnalyticsPage() {
             <div className="analytics-panel-head">
               <div>
                 <h3>每个页面中按钮的点击率</h3>
-                <small>点击率 = 按钮点击次数 ÷ 当前页面 PV；点击用户率 = 点击用户数 ÷ 当前页面 UV。</small>
+                <small>
+                  CTR = 按钮点击次数 ÷ 当前页面 PV；点击占比 = 该按钮点击 ÷ 当前页面全部点击。
+                  当前未采集按钮曝光，因此不用曝光作为分母。
+                </small>
+              </div>
+            </div>
+            <div className="analytics-button-summary">
+              <div>
+                <h4>Top 按钮</h4>
+                {topButtons.map((button) => (
+                  <p key={`top-${button.page_path}-${button.button_label}`}>
+                    {button.button_label}
+                    <span>{button.clicks} 次 · CTR {formatPercent(button.click_rate)}</span>
+                  </p>
+                ))}
+              </div>
+              <div>
+                <h4>低点击按钮</h4>
+                {lowClickButtons.map((button) => (
+                  <p key={`low-${button.page_path}-${button.button_label}`}>
+                    {button.button_label}
+                    <span>{button.clicks} 次 · CTR {formatPercent(button.click_rate)}</span>
+                  </p>
+                ))}
+              </div>
+              <div>
+                <h4>关键 CTA</h4>
+                {keyCtas.length === 0 ? (
+                  <p>暂无关键 CTA 点击</p>
+                ) : keyCtas.map((button) => (
+                  <p key={`cta-${button.page_path}-${button.button_label}`}>
+                    {button.button_label}
+                    <span>{button.clicks} 次 · {formatPercent(button.session_click_rate)} 会话点击</span>
+                  </p>
+                ))}
               </div>
             </div>
             {Object.entries(buttonsByPage).map(([pagePath, buttons]) => (
@@ -200,21 +307,50 @@ export function AnalyticsPage() {
                   {buttons.map((button) => (
                     <div
                       className="analytics-row analytics-row-grid"
-                      key={`${button.page_path}-${button.button_label}-${button.button_role}`}
+                      key={`${button.page_path}-${button.module}-${button.event_name}-${button.button_label}-${button.button_role}`}
                     >
                       <strong>{button.button_label}</strong>
-                      <span>{button.clicks} 次点击 · {button.click_users} 人点击</span>
-                      <span>{button.page_views} PV 基数</span>
                       <span>
-                        点击率 {formatPercent(button.click_rate)}
+                        {button.module} · {button.event_name}
+                        {button.is_key_cta ? ' · CTA' : ''}
+                      </span>
+                      <span>
+                        {button.clicks} 次 · {button.click_users} 人 · {button.click_sessions} 会话
+                      </span>
+                      <span>
+                        CTR {formatPercent(button.click_rate)}
                         {' · '}
-                        用户点击率 {formatPercent(button.user_click_rate)}
+                        点击占比 {formatPercent(button.page_click_share)}
+                        {' · '}
+                        会话点击 {formatPercent(button.session_click_rate)}
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
             ))}
+          </section>
+
+          <section className="analytics-panel">
+            <div className="analytics-panel-head">
+              <div>
+                <h3>事件分类</h3>
+                <small>按页面、模块、事件类型分类，帮助定位每类行为的数据来源。</small>
+              </div>
+            </div>
+            <div className="analytics-table">
+              {data.event_groups.map((event) => (
+                <div
+                  className="analytics-row analytics-row-grid"
+                  key={`${event.page_path}-${event.module}-${event.event_name}`}
+                >
+                  <strong>{event.event_name}</strong>
+                  <span>{pageLabel(event.page_path)} · {event.module}</span>
+                  <span>{event.event_category} · {event.events} 次</span>
+                  <span>{event.users} 人 · {event.sessions} 会话 · {formatPercent(event.event_share)}</span>
+                </div>
+              ))}
+            </div>
           </section>
 
           <section className="analytics-panel">

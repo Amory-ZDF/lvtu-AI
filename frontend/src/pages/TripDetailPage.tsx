@@ -316,6 +316,12 @@ function saveStatusText(status: SaveStatus): string {
   }
 }
 
+function tripStatusLabel(status: string): string {
+  if (status === 'ongoing') return '旅行中'
+  if (status === 'returned' || status === 'archived') return '已返程'
+  return '待出行'
+}
+
 function parseTemperature(value?: string | null): number | null {
   if (!value) return null
   const n = Number(value)
@@ -425,6 +431,8 @@ export function TripDetailPage() {
 
   // pointsByDay 的 ref，供 saveFn 读取最新值
   const pointsByDayRef = useRef(pointsByDay)
+  const mapTrackedRef = useRef(false)
+  const weatherTrackedRef = useRef<string | null>(null)
   useEffect(() => {
     pointsByDayRef.current = pointsByDay
   }, [pointsByDay])
@@ -464,6 +472,14 @@ export function TripDetailPage() {
           await updateTripPoint(dayId, pointId, payload)
         }),
       )
+      trackAnalyticsEvent({
+        event_name: 'trip_point_autosaved',
+        event_category: 'engagement',
+        metadata: {
+          module: 'trip_itinerary',
+          changed_points: entries.length,
+        },
+      })
     },
     [],
   )
@@ -695,11 +711,29 @@ export function TripDetailPage() {
   const openSpotDetail = (id: string) => {
     setDetailType('spot')
     setDetailId(id)
+    trackAnalyticsEvent({
+      event_name: 'photo_spot_detail_view',
+      event_category: 'engagement',
+      metadata: {
+        module: 'trip_spots',
+        tab: 'spots',
+        spot_id: id,
+      },
+    })
   }
 
   const openOutfitDetail = (id: string) => {
     setDetailType('outfit')
     setDetailId(id)
+    trackAnalyticsEvent({
+      event_name: 'outfit_detail_view',
+      event_category: 'engagement',
+      metadata: {
+        module: 'trip_outfit',
+        tab: 'outfit',
+        outfit_id: id,
+      },
+    })
   }
 
   const closeDetail = () => {
@@ -736,6 +770,17 @@ export function TripDetailPage() {
       const job = await createAdjustment(tripId, { instruction })
       const summary = job.output_data?.summary
       showToast(typeof summary === 'string' ? summary : '已根据你的要求调整行程')
+      trackAnalyticsEvent({
+        event_name: 'itinerary_adjustment_success',
+        event_category: 'conversion',
+        metadata: {
+          module: 'trip_itinerary',
+          instruction_length: instruction.length,
+          changed_count: Array.isArray(job.output_data?.changes)
+            ? job.output_data.changes.length
+            : 0,
+        },
+      })
       // 重新加载行程天和点
       const daysRes = await listTripDays(tripId)
       setDays(daysRes.items)
@@ -777,6 +822,15 @@ export function TripDetailPage() {
     setPackStatus('saving')
     try {
       await checkPackingItem(tripId, itemId, next)
+      trackAnalyticsEvent({
+        event_name: 'packing_item_checked',
+        event_category: 'engagement',
+        metadata: {
+          module: 'trip_packing',
+          tab: 'packing',
+          checked: next,
+        },
+      })
       setPackStatus('saved')
     } catch (err) {
       showToast(err instanceof Error ? err.message : '更新失败')
@@ -841,6 +895,52 @@ export function TripDetailPage() {
     }
     return result
   }, [pointsByDay])
+
+  useEffect(() => {
+    if (!trip) return
+    trackAnalyticsEvent({
+      event_name: 'trip_tab_view',
+      event_category: 'engagement',
+      metadata: {
+        module: `trip_${activeTab}`,
+        tab: activeTab,
+        trip_id: trip.id,
+      },
+    })
+  }, [activeTab, trip])
+
+  useEffect(() => {
+    if (!trip || activeTab !== 'itinerary' || mapTrackedRef.current || mapPoints.length === 0) {
+      return
+    }
+    mapTrackedRef.current = true
+    trackAnalyticsEvent({
+      event_name: 'map_viewed',
+      event_category: 'engagement',
+      metadata: {
+        module: 'trip_itinerary',
+        tab: 'itinerary',
+        trip_id: trip.id,
+        point_count: mapPoints.length,
+      },
+    })
+  }, [activeTab, mapPoints.length, trip])
+
+  useEffect(() => {
+    if (!trip || !destinationWeather) return
+    const key = `${trip.id}:${destinationWeather.available}:${destinationWeather.report_time || 'no-time'}`
+    if (weatherTrackedRef.current === key) return
+    weatherTrackedRef.current = key
+    trackAnalyticsEvent({
+      event_name: 'weather_loaded',
+      event_category: 'engagement',
+      metadata: {
+        module: 'trip_packing',
+        destination_name: trip.destination_name,
+        available: destinationWeather.available,
+      },
+    })
+  }, [destinationWeather, trip])
 
   // ── 渲染行程点卡片（含内联编辑） ──
   const renderStopCard = (point: TripPoint, index: number, dayId: string) => {
@@ -1027,7 +1127,7 @@ export function TripDetailPage() {
             <div className="detail-meta">
               {trip.start_date && <span>📅 {trip.start_date}{trip.end_date ? `—${trip.end_date}` : ''}</span>}
               <span>📌 {trip.destination_name}</span>
-              <span>🏷️ {trip.status === 'draft' ? '草稿' : trip.status === 'confirmed' ? '已确认' : '已归档'}</span>
+              <span>🏷️ {tripStatusLabel(trip.status)}</span>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
@@ -1084,7 +1184,7 @@ export function TripDetailPage() {
               style={{ padding: '5px 12px', fontSize: '0.82rem' }}
               onClick={() => setVersionOpen(true)}
             >
-              🕘 历史版本
+              ↩️ 回退行程
             </button>
           </div>
         </div>
@@ -1107,27 +1207,31 @@ export function TripDetailPage() {
         </div>
       )}
 
-      <nav className="sub-tabs">
+      <nav className="sub-tabs" data-analytics-module="trip_tabs">
         <button
           className={`sub-tab${activeTab === 'itinerary' ? ' active' : ''}`}
+          data-analytics-label="查看行程 Tab"
           onClick={() => setActiveTab('itinerary')}
         >
           📋 行程
         </button>
         <button
           className={`sub-tab${activeTab === 'outfit' ? ' active' : ''}`}
+          data-analytics-label="查看穿搭 Tab"
           onClick={() => setActiveTab('outfit')}
         >
           👗 穿搭
         </button>
         <button
           className={`sub-tab${activeTab === 'spots' ? ' active' : ''}`}
+          data-analytics-label="查看机位 Tab"
           onClick={() => setActiveTab('spots')}
         >
           📸 机位
         </button>
         <button
           className={`sub-tab${activeTab === 'packing' ? ' active' : ''}`}
+          data-analytics-label="查看打包 Tab"
           onClick={() => setActiveTab('packing')}
         >
           🎒 打包
@@ -1489,7 +1593,7 @@ export function TripDetailPage() {
         tripId={tripId}
         onClose={() => setVersionOpen(false)}
         onRestored={() => {
-          showToast('已回退到历史版本')
+          showToast('已回退行程')
           // 刷新页面数据
           if (loadData) loadData()
         }}

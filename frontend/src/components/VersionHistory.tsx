@@ -1,6 +1,6 @@
 /**
- * 版本历史组件
- * 侧边抽屉式展示行程版本快照列表，支持回退到指定版本
+ * 行程回退组件
+ * 侧边抽屉式展示最近 3 个可回退点，支持回退到指定状态
  */
 
 import { useEffect, useState } from 'react'
@@ -42,7 +42,7 @@ export function VersionHistory({ open, tripId, onClose, onRestored }: VersionHis
   const loadVersions = () => {
     setLoading(true)
     setError(null)
-    listVersions(tripId)
+    listVersions(tripId, { page_size: 3 })
       .then((res) => setVersions(res.items))
       .catch((err) => setError(err instanceof Error ? err.message : '获取版本列表失败'))
       .finally(() => setLoading(false))
@@ -85,7 +85,7 @@ export function VersionHistory({ open, tripId, onClose, onRestored }: VersionHis
         >
           <div className="dp-content" style={{ paddingTop: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '1.15rem' }}>🕘 历史版本</h2>
+              <h2 style={{ fontSize: '1.15rem' }}>↩️ 回退行程</h2>
               <button className="btn btn-secondary" style={{ padding: '4px 10px' }} onClick={onClose}>
                 关闭
               </button>
@@ -106,12 +106,15 @@ export function VersionHistory({ open, tripId, onClose, onRestored }: VersionHis
             ) : versions.length === 0 ? (
               <EmptyState
                 icon="🕘"
-                title="暂无历史版本"
-                description="编辑行程后会自动生成版本快照"
+                title="暂无可回退内容"
+                description="继续编辑后，这里会保留最近 3 个可回退点。"
               />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {versions.map((v) => (
+                <p className="hint" style={{ margin: '0 0 2px' }}>
+                  只保留最近 3 个可回退点，不会生成新的行程。
+                </p>
+                {versions.map((v, index) => (
                   <div
                     key={v.id}
                     style={{
@@ -121,23 +124,18 @@ export function VersionHistory({ open, tripId, onClose, onRestored }: VersionHis
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong>v{v.version_number}</strong>
+                      <strong>{index === 0 ? '最近一次' : index === 1 ? '上一次' : '更早一次'}</strong>
                       <span className="hint" style={{ fontSize: '0.8rem' }}>
                         {formatTime(v.created_at)}
                       </span>
                     </div>
-                    {v.note && (
-                      <p className="hint" style={{ margin: '6px 0 10px' }}>
-                        {v.note}
-                      </p>
-                    )}
                     <button
                       className="btn btn-secondary"
-                      style={{ width: '100%', justifyContent: 'center', padding: '6px' }}
+                      style={{ width: '100%', justifyContent: 'center', padding: '6px', marginTop: '10px' }}
                       disabled={restoring}
                       onClick={() => setConfirmId(v.id)}
                     >
-                      回退到此版本
+                      回退到这里
                     </button>
                   </div>
                 ))}
@@ -149,8 +147,8 @@ export function VersionHistory({ open, tripId, onClose, onRestored }: VersionHis
 
       <ConfirmDialog
         open={confirmId !== null}
-        title="回退版本"
-        description="确定要回退到此版本吗？当前未保存的修改将被覆盖。"
+        title="回退行程？"
+        description="确定要回退到这个状态吗？当前内容会被覆盖，但仍然属于同一个行程。"
         confirmText={restoring ? '回退中...' : '确定回退'}
         onConfirm={handleRestore}
         onCancel={() => setConfirmId(null)}

@@ -51,7 +51,7 @@ export const mockTrip = {
   destination_name: '厦门',
   start_date: '2026-03-15',
   end_date: '2026-03-17',
-  status: 'draft' as const,
+  status: 'upcoming' as const,
   cover_image_url: null,
   notes: '记得带防晒霜',
   created_at: NOW,
