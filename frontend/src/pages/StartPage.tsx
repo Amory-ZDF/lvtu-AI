@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { recommendDestinationsAsync } from '@/services/planning'
 import { trackAnalyticsEvent } from '@/services/analytics'
 import { useJobProgress } from '@/hooks/useJobProgress'
-import { useTripStore } from '@/store/tripStore'
+import { useTripStore, type StartFormDraft } from '@/store/tripStore'
 import { useUIStore } from '@/store/uiStore'
 import type { DestinationRecommendationRequest, DestinationRecommendationPayload } from '@/types'
 
@@ -25,6 +25,32 @@ const GEN_STEPS = [
   '📍 检索目的地热点数据...',
   '✨ 生成推荐结果...',
 ]
+
+function formatDateInput(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function createDefaultFormDraft(): StartFormDraft {
+  const today = new Date()
+  const endDate = new Date(today)
+  endDate.setDate(today.getDate() + 2)
+  return {
+    interest: '放松的海边，适合拍照的文艺小镇',
+    departure: '北京',
+    budget: '3000-5000 元',
+    startDate: formatDateInput(today),
+    endDate: formatDateInput(endDate),
+    extra: '',
+    prefs: [
+      { label: '🌿 自然风光', value: 75 },
+      { label: '🍜 美食探索', value: 55 },
+      { label: '🏛️ 人文历史', value: 35 },
+    ],
+  }
+}
 
 /** 根据 progress 映射到步骤索引 */
 function progressToStep(progress: number): number {
@@ -52,23 +78,35 @@ export function StartPage() {
   const navigate = useNavigate()
   const showToast = useUIStore((s) => s.showToast)
   const setDestinations = useTripStore((s) => s.setDestinations)
+  const setLastRecommendRequest = useTripStore((s) => s.setLastRecommendRequest)
+  const startFormDraft = useTripStore((s) => s.startFormDraft)
+  const setStartFormDraft = useTripStore((s) => s.setStartFormDraft)
   const { progress, status, outputData, error: jobError, start, reset } = useJobProgress()
+  const initialDraft = startFormDraft || createDefaultFormDraft()
 
   const [generating, setGenerating] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [prefs, setPrefs] = useState<PrefSlider[]>([
-    { label: '🌿 自然风光', value: 75 },
-    { label: '🍜 美食探索', value: 55 },
-    { label: '🏛️ 人文历史', value: 35 },
-  ])
+  const [prefs, setPrefs] = useState<PrefSlider[]>(() =>
+    initialDraft.prefs.map((pref) => ({ ...pref })),
+  )
 
   // 表单字段
-  const [interest, setInterest] = useState('放松的海边，适合拍照的文艺小镇')
-  const [departure, setDeparture] = useState('北京')
-  const [budget, setBudget] = useState('3000-5000 元')
-  const [startDate, setStartDate] = useState('2026-03-15')
-  const [endDate, setEndDate] = useState('2026-03-17')
-  const [extra, setExtra] = useState('')
+  const [interest, setInterest] = useState(initialDraft.interest)
+  const [departure, setDeparture] = useState(initialDraft.departure)
+  const [budget, setBudget] = useState(initialDraft.budget)
+  const [startDate, setStartDate] = useState(initialDraft.startDate)
+  const [endDate, setEndDate] = useState(initialDraft.endDate)
+  const [extra, setExtra] = useState(initialDraft.extra)
+
+  const buildDraft = (): StartFormDraft => ({
+    interest,
+    departure,
+    budget,
+    startDate,
+    endDate,
+    extra,
+    prefs: prefs.map((pref) => ({ ...pref })),
+  })
 
   /** 解析预算区间为 min/max */
   const parseBudget = (raw: string): { min: number; max: number } => {
@@ -126,6 +164,11 @@ export function StartPage() {
     interests: payload.interests,
   })
 
+  useEffect(() => {
+    setStartFormDraft(buildDraft())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interest, departure, budget, startDate, endDate, extra, prefs])
+
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault()
     setGenerating(true)
@@ -133,12 +176,14 @@ export function StartPage() {
     reset()
 
     try {
-      const job = await recommendDestinationsAsync(buildPayload())
+      const payload = buildPayload()
+      setLastRecommendRequest(payload)
+      setStartFormDraft(buildDraft())
+      const job = await recommendDestinationsAsync(payload)
       // 若任务已同步完成，直接取结果（后端 status 为 "completed"）
       if ((job.status === 'succeeded' || job.status === 'completed') && job.output_data) {
         const parsed = parseDestinations(job.output_data)
         if (parsed) {
-          const payload = buildPayload()
           setDestinations(parsed)
           trackAnalyticsEvent({
             event_name: 'destination_recommendation_success',
@@ -172,6 +217,8 @@ export function StartPage() {
       const parsed = parseDestinations(outputData)
       if (parsed) {
         const payload = buildPayload()
+        setLastRecommendRequest(payload)
+        setStartFormDraft(buildDraft())
         setDestinations(parsed)
         trackAnalyticsEvent({
           event_name: 'destination_recommendation_success',

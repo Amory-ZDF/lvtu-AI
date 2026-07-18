@@ -3,65 +3,50 @@
  */
 
 import type { TripCardData } from '@/data/mock'
-import { LazyImage } from '@/components/LazyImage'
+import type { Trip } from '@/types'
 
 interface TripCardProps {
   trip: TripCardData
   onClick?: (id: string) => void
-  editing?: boolean
-  onDelete?: (id: string) => void
 }
 
-function statusLabel(status: TripCardData['status']): string {
-  if (status === 'ongoing') return '旅行中'
-  if (status === 'returned') return '已返程'
-  return '待出行'
+function formatTripDuration(trip: Trip): string {
+  if (!trip.start_date || !trip.end_date) return '日期待定'
+  const start = Date.parse(trip.start_date)
+  const end = Date.parse(trip.end_date)
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return '日期待定'
+  const days = Math.floor((end - start) / 86400000) + 1
+  return `${days}天${Math.max(days - 1, 0)}晚`
 }
 
-export function TripCard({ trip, onClick, editing = false, onDelete }: TripCardProps) {
+export function tripToCardData(trip: Trip): TripCardData {
+  const destination = trip.destination_name.trim()
+  const routeTitle = (trip.title.split('·').pop() || trip.title).trim()
+  const description = routeTitle.startsWith(destination)
+    ? routeTitle.slice(destination.length).trim()
+    : routeTitle
+  return {
+    id: trip.id,
+    destination,
+    duration: formatTripDuration(trip),
+    description: description || '经典初访覆盖线',
+  }
+}
+
+export function TripCard({ trip, onClick }: TripCardProps) {
   return (
-    <div
-      className={`trip-card${editing ? ' editing' : ''}`}
-      style={{ cursor: editing ? 'default' : 'pointer' }}
-      onClick={(e) => {
-        e.stopPropagation()
-        if (editing) return
-        onClick?.(trip.id)
-      }}
+    <button
+      className="trip-card"
+      type="button"
+      onClick={() => onClick?.(trip.id)}
     >
-      <div
-        className="card-img"
-        style={trip.imageUrl ? undefined : { backgroundImage: trip.gradient }}
-      >
-        {trip.imageUrl && (
-          <LazyImage
-            src={trip.imageUrl}
-            alt={trip.title}
-            placeholder={trip.gradient}
-            containerStyle={{ position: 'absolute', inset: 0 }}
-          />
-        )}
-        <span className={`card-status ${trip.status}`}>
-          {statusLabel(trip.status)}
-        </span>
-        {editing && (
-          <button
-            className="trip-delete-btn"
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete?.(trip.id)
-            }}
-          >
-            删除
-          </button>
-        )}
+      <div className="trip-card-head">
+        <h3>{trip.destination}</h3>
+        <span>{trip.duration}</span>
       </div>
-      <div className="card-body">
-        <h4>{trip.title}</h4>
-        <p>{trip.subtitle}</p>
-      </div>
-    </div>
+      <p>{trip.description}</p>
+      <span className="trip-card-arrow" aria-hidden="true">→</span>
+    </button>
   )
 }
 

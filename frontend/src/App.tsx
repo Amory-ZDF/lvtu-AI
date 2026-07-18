@@ -32,6 +32,7 @@ import LoginPage from '@/pages/LoginPage'
 const StartPage = lazy(() => import('@/pages/StartPage'))
 const DestinationsPage = lazy(() => import('@/pages/DestinationsPage'))
 const ComparisonPage = lazy(() => import('@/pages/ComparisonPage'))
+const AllTripsPage = lazy(() => import('@/pages/AllTripsPage'))
 const TripDetailPage = lazy(() => import('@/pages/TripDetailPage'))
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
 
@@ -78,6 +79,16 @@ function Layout() {
   useEffect(() => {
     setSidebarOpen(false)
   }, [location.pathname, setSidebarOpen])
+
+  if (location.pathname === '/') {
+    return (
+      <div className="app-layout home-app-layout">
+        <div className="main">
+          <Outlet />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app-layout">
@@ -140,6 +151,14 @@ export default function App() {
               element={
                 <Suspense fallback={<RouteFallback />}>
                   <ComparisonPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/trips"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <AllTripsPage />
                 </Suspense>
               }
             />

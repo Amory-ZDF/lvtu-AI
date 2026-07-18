@@ -10,8 +10,8 @@ import type { Page } from '@playwright/test'
 const NOW = '2026-03-01T00:00:00.000Z'
 
 /** 列表分页 meta */
-function listMeta(total: number) {
-  return { page: 1, page_size: 20, total, has_more: false }
+function listMeta(total: number, page = 1, pageSize = 20) {
+  return { page, page_size: pageSize, total, has_more: page * pageSize < total }
 }
 
 /** 包裹为统一响应格式 { success, data, meta } */
@@ -241,7 +241,10 @@ function buildDestinationsSseBody(): string {
  * 注册全部 API mock。每次调用产生独立可变状态。
  * 返回一个可手动触发"下一份推荐结果"的句柄（此处未使用，预留扩展）。
  */
-export async function setupApiMocks(page: Page): Promise<void> {
+export async function setupApiMocks(
+  page: Page,
+  options: { trips?: Array<typeof mockTrip>; adjustmentFailure?: boolean } = {},
+): Promise<void> {
   // 可变状态（每个测试独立）
   const packingItems = mockPackingItems.map((i) => ({ ...i }))
   const pointsByDay: Record<string, unknown[]> = {
@@ -249,6 +252,7 @@ export async function setupApiMocks(page: Page): Promise<void> {
     'day-2': [],
   }
   let idSeq = 100
+  const trips = options.trips ?? [mockTrip]
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request()
@@ -330,10 +334,16 @@ export async function setupApiMocks(page: Page): Promise<void> {
     // ── 行程 CRUD ──
     if (/^\/users\/[^/]+\/trips$/.test(apiPath)) {
       if (method === 'GET') {
+        const page = Number(url.searchParams.get('page') || 1)
+        const pageSize = Number(url.searchParams.get('page_size') || 20)
+        const start = (page - 1) * pageSize
         return route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(wrap({ items: [mockTrip], meta: listMeta(1) })),
+          body: JSON.stringify(wrap({
+            items: trips.slice(start, start + pageSize),
+            meta: listMeta(trips.length, page, pageSize),
+          })),
         })
       }
       if (method === 'POST') {
@@ -485,6 +495,23 @@ export async function setupApiMocks(page: Page): Promise<void> {
 
     // ── 行程自然语言调整 ──
     if (/^\/trips\/[^/]+\/adjustments$/.test(apiPath) && method === 'POST') {
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      if (options.adjustmentFailure) {
+        return route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: false,
+            data: null,
+            error: {
+              code: 'ai_adjustment_not_configured',
+              message: '文本大模型尚未配置，暂时无法使用 AI 修改行程',
+              details: [],
+            },
+            meta: { request_id: 'mock-req', timestamp: NOW },
+          }),
+        })
+      }
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -496,7 +523,10 @@ export async function setupApiMocks(page: Page): Promise<void> {
             progress: 100,
             user_id: 'user-1',
             input_data: {},
-            output_data: null,
+            output_data: {
+              summary: '已将第一天下午调整为更轻松的安排。',
+              changes: [{ op: 'update', point_id: 'point-1' }],
+            },
             error_message: null,
             created_at: NOW,
             updated_at: NOW,

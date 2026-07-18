@@ -157,6 +157,75 @@ def _seed_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def _recommendation_seed_dir(tmp_path: Path) -> Path:
+    pois = [
+        {
+            "id": "hot-1",
+            "destination_name": "热门城",
+            "name": "热门海岸观景台",
+            "category": "photo_spot",
+            "address": "海岸路",
+            "province": "热门省",
+            "tags": ["photo_spot", "海岸"],
+            "quality_score": 0.99,
+        },
+        {
+            "id": "hot-2",
+            "destination_name": "热门城",
+            "name": "热门城市公园",
+            "category": "nature",
+            "address": "公园路",
+            "province": "热门省",
+            "tags": ["nature"],
+            "quality_score": 0.98,
+        },
+        {
+            "id": "tj-1",
+            "destination_name": "天津",
+            "name": "天津之眼",
+            "category": "attraction",
+            "address": "天津市中心",
+            "province": "天津",
+            "tags": ["地标"],
+            "quality_score": 0.72,
+        },
+        {
+            "id": "tj-2",
+            "destination_name": "天津",
+            "name": "五大道",
+            "category": "citywalk",
+            "address": "天津和平区",
+            "province": "天津",
+            "tags": ["citywalk"],
+            "quality_score": 0.7,
+        },
+        {
+            "id": "gz-1",
+            "destination_name": "甘孜",
+            "name": "亚拉雪山景区",
+            "category": "nature",
+            "address": "雪山观景路",
+            "province": "四川",
+            "tags": ["雪山", "冰川"],
+            "quality_score": 0.76,
+        },
+        {
+            "id": "gz-2",
+            "destination_name": "甘孜",
+            "name": "雀儿山冰川观景台",
+            "category": "photo_spot",
+            "address": "高山观景台",
+            "province": "四川",
+            "tags": ["冰川", "观景台"],
+            "quality_score": 0.74,
+        },
+    ]
+    _write_payload(tmp_path / "pois_latest.json", pois)
+    _write_payload(tmp_path / "photo_spots_latest.json", [])
+    _write_payload(tmp_path / "route_templates_latest.json", [])
+    return tmp_path
+
+
 def test_knowledge_recommendation_uses_seed_data(tmp_path: Path) -> None:
     integration = KnowledgeRecommendationIntegration(_seed_dir(tmp_path))
     result = integration.recommend(
@@ -169,6 +238,42 @@ def test_knowledge_recommendation_uses_seed_data(tmp_path: Path) -> None:
     assert item.hero_image.placeholder is False
     assert item.hero_image.provider == "lv-local-card"
     assert "测试观景台" in item.reasons[1]
+
+
+def test_knowledge_recommendation_prioritizes_explicit_city(tmp_path: Path) -> None:
+    integration = KnowledgeRecommendationIntegration(_recommendation_seed_dir(tmp_path))
+    result = integration.recommend(
+        DestinationRecommendationRequest(duration_days=2, interests=["我要去天津"])
+    )
+
+    assert result.destinations[0].name == "天津"
+
+
+def test_knowledge_recommendation_prioritizes_snow_mountain_intent(
+    tmp_path: Path,
+) -> None:
+    integration = KnowledgeRecommendationIntegration(_recommendation_seed_dir(tmp_path))
+    result = integration.recommend(
+        DestinationRecommendationRequest(duration_days=2, interests=["我要去雪山"])
+    )
+
+    assert result.destinations[0].name == "甘孜"
+
+
+def test_knowledge_recommendation_excludes_seen_destinations(tmp_path: Path) -> None:
+    integration = KnowledgeRecommendationIntegration(_recommendation_seed_dir(tmp_path))
+    result = integration.recommend(
+        DestinationRecommendationRequest(
+            duration_days=2,
+            interests=["自然", "拍照"],
+            exclude_destination_names=["热门城", "天津"],
+        )
+    )
+
+    names = {item.name for item in result.destinations}
+    assert "热门城" not in names
+    assert "天津" not in names
+    assert "甘孜" in names
 
 
 def test_knowledge_route_generation_uses_real_pois(tmp_path: Path) -> None:

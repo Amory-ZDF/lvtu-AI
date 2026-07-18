@@ -29,5 +29,5 @@ class JobCreateRequest(BaseModel):
 
 
 class AdjustmentRequest(BaseModel):
-    instruction: str
+    instruction: str = Field(min_length=2, max_length=1000)
     target_day_id: UUID | None = None

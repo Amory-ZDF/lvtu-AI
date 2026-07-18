@@ -13,6 +13,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { AdjustmentProgressDialog } from '@/components/AdjustmentProgressDialog'
 import { VersionHistory } from '@/components/VersionHistory'
 import { MapView, type MapPoint } from '@/components/MapView'
 import { useAutoSave, type SaveStatus } from '@/hooks/useAutoSave'
@@ -26,6 +27,7 @@ import {
   listTripPoints,
   createTripPoint,
   updateTripPoint,
+  deleteTrip,
   deleteTripPoint,
   reorderTripPoints,
   listPackingItems,
@@ -400,6 +402,8 @@ export function TripDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [adjusting, setAdjusting] = useState(false)
+  const [adjustmentInput, setAdjustmentInput] = useState('')
+  const [adjustmentProgress, setAdjustmentProgress] = useState(0)
 
   // 拖拽
   const [dragSrc, setDragSrc] = useState<{ dayId: string; index: number } | null>(null)
@@ -424,6 +428,8 @@ export function TripDetailPage() {
 
   // 版本历史
   const [versionOpen, setVersionOpen] = useState(false)
+  const [tripDeleteOpen, setTripDeleteOpen] = useState(false)
+  const [deletingTrip, setDeletingTrip] = useState(false)
 
   // 远程光标标记
   const [remoteCursor, setRemoteCursor] = useState<{ userId: string } | null>(null)
@@ -436,6 +442,23 @@ export function TripDetailPage() {
   useEffect(() => {
     pointsByDayRef.current = pointsByDay
   }, [pointsByDay])
+
+  useEffect(() => {
+    if (!adjusting) {
+      setAdjustmentProgress(0)
+      return
+    }
+    setAdjustmentProgress(8)
+    const timer = window.setInterval(() => {
+      setAdjustmentProgress((current) => {
+        if (current >= 88) return current
+        if (current < 34) return Math.min(34, current + 6)
+        if (current < 68) return Math.min(68, current + 4)
+        return Math.min(88, current + 2)
+      })
+    }, 700)
+    return () => window.clearInterval(timer)
+  }, [adjusting])
 
   // ── 协同编辑 ──
   const handleRemoteEdit = useCallback(
@@ -674,6 +697,20 @@ export function TripDetailPage() {
     }
   }
 
+  const confirmTripDelete = async () => {
+    if (!user || deletingTrip) return
+    setDeletingTrip(true)
+    try {
+      await deleteTrip(user.id, tripId)
+      showToast('行程已删除')
+      navigate('/', { replace: true })
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : '删除行程失败')
+    } finally {
+      setDeletingTrip(false)
+    }
+  }
+
   const removeStop = async (dayId: string, index: number) => {
     const list = pointsByDay[dayId] || []
     const point = list[index]
@@ -767,18 +804,21 @@ export function TripDetailPage() {
     if (!instruction.trim()) return
     setAdjusting(true)
     try {
-      const job = await createAdjustment(tripId, { instruction })
+      const job = await createAdjustment(tripId, { instruction: instruction.trim() })
       const summary = job.output_data?.summary
-      showToast(typeof summary === 'string' ? summary : '已根据你的要求调整行程')
+      const changedCount = Array.isArray(job.output_data?.changes)
+        ? job.output_data.changes.length
+        : 0
+      if (changedCount === 0) {
+        throw new Error('AI 没有生成实际修改，请换一种更具体的说法')
+      }
       trackAnalyticsEvent({
         event_name: 'itinerary_adjustment_success',
         event_category: 'conversion',
         metadata: {
           module: 'trip_itinerary',
           instruction_length: instruction.length,
-          changed_count: Array.isArray(job.output_data?.changes)
-            ? job.output_data.changes.length
-            : 0,
+          changed_count: changedCount,
         },
       })
       // 重新加载行程天和点
@@ -793,6 +833,10 @@ export function TripDetailPage() {
       )
       setPointsByDay(pointsMap)
       setPointDrafts({})
+      setAdjustmentProgress(100)
+      await new Promise((resolve) => window.setTimeout(resolve, 350))
+      setAdjustmentInput('')
+      showToast(typeof summary === 'string' ? summary : `已完成 ${changedCount} 处行程调整`)
     } catch (err) {
       showToast(err instanceof Error ? err.message : '调整失败')
     } finally {
@@ -1178,14 +1222,21 @@ export function TripDetailPage() {
                 {connected ? '● 协同在线' : '○ 未连接'}
               </span>
             </div>
-            {/* 版本历史入口 */}
-            <button
-              className="btn btn-secondary"
-              style={{ padding: '5px 12px', fontSize: '0.82rem' }}
-              onClick={() => setVersionOpen(true)}
-            >
-              ↩️ 回退行程
-            </button>
+            <div className="trip-header-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setVersionOpen(true)}
+              >
+                ↩️ 回退行程
+              </button>
+              <button
+                className="trip-delete-action"
+                type="button"
+                onClick={() => setTripDeleteOpen(true)}
+              >
+                删除行程
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1252,28 +1303,21 @@ export function TripDetailPage() {
             <input
               type="text"
               className="nl-input"
+              value={adjustmentInput}
+              onChange={(event) => setAdjustmentInput(event.target.value)}
               disabled={adjusting}
               placeholder="想调整行程？直接告诉我，比如「把第二天下午改轻松一点」「加一个拍照点」…"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const val = (e.target as HTMLInputElement).value
-                  if (val.trim()) {
-                    handleAdjust(val)
-                    ;(e.target as HTMLInputElement).value = ''
-                  }
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing && adjustmentInput.trim()) {
+                  handleAdjust(adjustmentInput)
                 }
               }}
             />
             <button
               className="nl-send"
               disabled={adjusting}
-              onClick={(e) => {
-                const input = e.currentTarget.previousElementSibling as HTMLInputElement
-                if (input.value.trim()) {
-                  handleAdjust(input.value)
-                  input.value = ''
-                }
-              }}
+              onClick={() => adjustmentInput.trim() && handleAdjust(adjustmentInput)}
+              aria-label="提交 AI 行程修改"
             >
               →
             </button>
@@ -1562,6 +1606,12 @@ export function TripDetailPage() {
       )}
 
       {/* 详情弹窗 */}
+      <AdjustmentProgressDialog
+        open={adjusting}
+        progress={adjustmentProgress}
+        instruction={adjustmentInput.trim()}
+      />
+
       {detailType === 'spot' && detailId && currentSpot && (
         <SpotDetail
           data={toSpotDetail(currentSpot)}
@@ -1585,6 +1635,15 @@ export function TripDetailPage() {
         confirmText="删除"
         onConfirm={confirmDeleteAction}
         onCancel={() => setConfirmDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={tripDeleteOpen}
+        title="删除整个行程？"
+        description="删除后无法恢复，相关行程安排、机位、穿搭和打包清单都会被删除。"
+        confirmText={deletingTrip ? '删除中...' : '确认删除'}
+        onConfirm={confirmTripDelete}
+        onCancel={() => setTripDeleteOpen(false)}
       />
 
       {/* 版本历史 */}

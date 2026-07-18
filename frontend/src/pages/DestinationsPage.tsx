@@ -13,7 +13,11 @@ import { useUIStore } from '@/store/uiStore'
 import { useTripStore } from '@/store/tripStore'
 import { trackAnalyticsEvent } from '@/services/analytics'
 import { recommendDestinations } from '@/services/planning'
-import type { DestinationItem, DestinationRecommendationPayload } from '@/types'
+import type {
+  DestinationItem,
+  DestinationRecommendationPayload,
+  DestinationRecommendationRequest,
+} from '@/types'
 import type { DestinationPreview } from '@/data/mock'
 
 /** 默认渐变（按 id 哈希取色） */
@@ -26,6 +30,10 @@ const GRADIENTS = [
 ]
 
 const DESTINATION_BATCH_SIZE = 3
+const DEFAULT_RECOMMEND_REQUEST: DestinationRecommendationRequest = {
+  duration_days: 3,
+  interests: ['自然', '拍照', '美食'],
+}
 
 function pickGradient(id: string): string {
   let hash = 0
@@ -57,10 +65,12 @@ function toPreview(item: DestinationItem, index: number): DestinationPreview {
 
 function destinationBatch(items: DestinationItem[], batchIndex: number): DestinationItem[] {
   if (items.length <= DESTINATION_BATCH_SIZE) return items
-  const start = (batchIndex * DESTINATION_BATCH_SIZE) % items.length
-  const batch = items.slice(start, start + DESTINATION_BATCH_SIZE)
-  if (batch.length === DESTINATION_BATCH_SIZE) return batch
-  return [...batch, ...items.slice(0, DESTINATION_BATCH_SIZE - batch.length)]
+  const start = batchIndex * DESTINATION_BATCH_SIZE
+  return items.slice(start, start + DESTINATION_BATCH_SIZE)
+}
+
+function normalizedName(name: string): string {
+  return name.trim().replace(/市$/, '')
 }
 
 export function DestinationsPage() {
@@ -78,10 +88,7 @@ export function DestinationsPage() {
   const fetchDefault = () => {
     setLoading(true)
     setError(null)
-    const payload = lastRecommendRequest || {
-      duration_days: 3,
-      interests: ['自然', '拍照', '美食'],
-    }
+    const payload = lastRecommendRequest || DEFAULT_RECOMMEND_REQUEST
     recommendDestinations(payload)
       .then((data) => {
         setDestinations(data)
@@ -96,6 +103,48 @@ export function DestinationsPage() {
             interests: payload.interests,
           },
         })
+      })
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : '获取推荐失败'),
+      )
+      .finally(() => setLoading(false))
+  }
+
+  /** 浏览完当前 6 个后，请后端排除已看过的目的地并重新生成 */
+  const fetchDistinctBatch = () => {
+    const currentNames = (destinations?.destinations || []).map((item) => item.name)
+    const excludeNames = Array.from(new Set(currentNames))
+    const excluded = new Set(excludeNames.map(normalizedName))
+    const payload = {
+      ...(lastRecommendRequest || DEFAULT_RECOMMEND_REQUEST),
+      exclude_destination_names: excludeNames,
+    }
+
+    setLoading(true)
+    setError(null)
+    recommendDestinations(payload)
+      .then((data) => {
+        const nextDestinations = data.destinations
+          .filter((item) => !excluded.has(normalizedName(item.name)))
+          .slice(0, 6)
+        if (nextDestinations.length === 0) {
+          showToast('当前偏好下暂时没有更多不重复目的地，请返回修改偏好')
+          return
+        }
+        setDestinations({ ...data, destinations: nextDestinations })
+        trackAnalyticsEvent({
+          event_name: 'destination_recommendation_success',
+          event_category: 'conversion',
+          metadata: {
+            destination_count: nextDestinations.length,
+            duration_days: payload.duration_days,
+            budget_min: payload.budget_min ?? undefined,
+            budget_max: payload.budget_max ?? undefined,
+            interests: payload.interests,
+            exclude_destination_count: excludeNames.length,
+          },
+        })
+        showToast('已重新生成新的目的地')
       })
       .catch((err) =>
         setError(err instanceof Error ? err.message : '获取推荐失败'),
@@ -141,12 +190,14 @@ export function DestinationsPage() {
     const allDestinations = destinations?.destinations || []
     if (allDestinations.length > DESTINATION_BATCH_SIZE) {
       const totalBatches = Math.ceil(allDestinations.length / DESTINATION_BATCH_SIZE)
-      setBatchIndex((current) => (current + 1) % totalBatches)
-      showToast('已换一批目的地')
-      return
+      if (batchIndex + 1 < totalBatches) {
+        setBatchIndex((current) => current + 1)
+        showToast('已换一批目的地')
+        return
+      }
     }
-    fetchDefault()
-    showToast('正在重新匹配目的地...')
+    fetchDistinctBatch()
+    showToast('正在重新匹配新的目的地...')
   }
 
   const allDestinationItems =

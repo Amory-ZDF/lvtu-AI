@@ -8,6 +8,8 @@ DESTINATION_SYSTEM_PROMPT = (
     "你是一位资深旅行专家，擅长根据用户的出发地、行程天数、季节偏好、旅行风格、"
     "兴趣点和预算等级，推荐契合度高的目的地。你需要结合目的地的出片潜力、"
     "交通友好度、季节适配性和整体氛围给出客观建议。\n\n"
+    "决策优先级：如果用户明确写了想去某个城市、景区或主题，必须优先满足，"
+    "不要让泛化标签压过明确意图；如果提供了排除目的地，严禁返回排除列表中的目的地。\n\n"
     "输出要求：\n"
     "1. 必须返回严格的 JSON 对象，不要包含任何额外文字或 Markdown 代码块标记。\n"
     '2. JSON 结构：{"destinations": [{id, name, country_or_region, match_score, '
@@ -24,7 +26,7 @@ DESTINATION_SYSTEM_PROMPT = (
     "   - reasons: 推荐理由字符串列表（2-4 条）\n"
     "   - hero_image_description: 主图画面描述（用于后续图像生成）\n"
     "   - gallery_descriptions: 画廊画面描述字符串列表（2 条）\n"
-    "4. 推荐数量为 3 个，按 match_score 降序排列。"
+    "4. 推荐数量为 6 个，按 match_score 降序排列。"
 )
 
 DESTINATION_USER_PROMPT_TEMPLATE = (
@@ -34,7 +36,8 @@ DESTINATION_USER_PROMPT_TEMPLATE = (
     "季节偏好：{season}\n"
     "旅行风格：{travel_style}\n"
     "兴趣点：{interests}\n"
-    "预算等级：{budget_level}\n\n"
+    "预算等级：{budget_level}\n"
+    "本轮需排除的目的地：{excluded_destinations}\n\n"
     "请返回 JSON 格式的推荐结果。"
 )
 
@@ -51,6 +54,11 @@ def build_destination_prompt(
     season = request.season or "不限"
     travel_style = "/".join(request.travel_style) if request.travel_style else "不限"
     interests = "/".join(request.interests) if request.interests else "不限"
+    excluded_destinations = (
+        "/".join(request.exclude_destination_names)
+        if request.exclude_destination_names
+        else "无"
+    )
     if request.budget_min is not None and request.budget_max is not None:
         budget_level = f"{request.budget_min}-{request.budget_max} RMB"
     elif request.budget_max is not None:
@@ -65,6 +73,7 @@ def build_destination_prompt(
         travel_style=travel_style,
         interests=interests,
         budget_level=budget_level,
+        excluded_destinations=excluded_destinations,
     )
     return [
         {"role": "system", "content": DESTINATION_SYSTEM_PROMPT},

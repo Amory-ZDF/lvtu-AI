@@ -6,9 +6,8 @@
   .dest-scroll { grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .dp-hero { height: 130px; }
   .trip-cards { grid-template-columns: repeat(2, 1fr); }
+  .home-trips-section .trip-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .essentials-grid { grid-template-columns: repeat(3, 1fr); }
-  .home-hero { padding: 44px 0 36px; }
-  .home-hero h1 { font-size: 2.2rem; }
 }
 
 /* -- 900px: tablet landscape -- */
@@ -19,9 +18,18 @@
   .page { padding: 20px 18px 40px; }
 
   .app-layout { display: block; }
-  .home-hero { padding: 36px 0 28px; text-align: left; }
-  .home-hero h1 { font-size: 1.85rem; max-width: 100%; }
-  .home-hero p { max-width: 100%; }
+  .home-app-layout { height: auto; min-height: 100svh; overflow: visible; }
+  .home-app-layout .main, .home-page { height: auto; min-height: 100svh; }
+  .home-video-hero { height: auto; min-height: 100svh; overflow: visible; }
+  .home-topbar { padding: 20px; }
+  .home-one-page-content {
+    position: relative; inset: auto; display: flex; flex-direction: column; gap: 32px;
+    min-height: 100svh; padding: 86px 20px 48px;
+  }
+  .home-hero-content { min-height: 430px; }
+  .home-hero-content h1 { font-size: 4rem; }
+  .home-trips-section { padding: 0; }
+  .home-trips-section .trip-cards { grid-template-columns: 1fr 1fr; }
 
   .trip-cards { grid-template-columns: 1fr 1fr; gap: 12px; }
   .dest-scroll { grid-template-columns: 1fr; gap: 16px; }
@@ -42,6 +50,7 @@
   .weather-badge { flex: 0 0 auto; width: 100%; }
   .analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analytics-two-col { grid-template-columns: 1fr; gap: 0; }
+  .all-trips-header { align-items: flex-start; }
 
   .sub-tabs { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
   .sub-tabs::-webkit-scrollbar { display: none; }
@@ -65,8 +74,20 @@
   h1 { font-size: 1.5rem; }
   h2 { font-size: 1.15rem; }
 
-  .home-hero h1 { font-size: 1.55rem; }
-  .home-hero p { font-size: 0.9rem; }
+  .home-topbar { padding: 16px 14px; }
+  .home-brand { font-size: 1.12rem; }
+  .home-top-actions { gap: 7px; }
+  .home-nav-button { min-height: 40px; padding: 8px 11px; font-size: 0.76rem; }
+  .home-account-button { max-width: 122px; overflow: hidden; text-overflow: ellipsis; }
+  .home-one-page-content { gap: 26px; padding: 74px 14px 42px; }
+  .home-hero-content { min-height: 500px; padding: 32px 6px 20px; }
+  .home-hero-content h1 { font-size: 3.35rem; }
+  .home-hero-content p { max-width: 340px; margin: 17px auto 26px; font-size: 0.92rem; line-height: 1.7; }
+  .home-primary-cta { min-width: 204px; min-height: 58px; }
+  .home-video-credit { display: none; }
+  .home-trips-section { padding: 0; }
+  .home-trips-section .section-head h2 { font-size: 1.4rem; }
+  .home-trips-section .trip-cards { grid-template-columns: 1fr; }
   .btn-lg { padding: 12px 24px; font-size: 0.9rem; }
 
   .trip-cards { grid-template-columns: 1fr; }
@@ -86,6 +107,7 @@
   .funnel-metrics { grid-template-columns: 1fr; }
   .analytics-admin-form { grid-template-columns: 1fr; }
   .analytics-row.inline { align-items: flex-start; flex-direction: column; }
+  .all-trips-header { flex-direction: column; gap: 8px; }
 
   .detail-meta { gap: 6px; }
   .detail-meta span { font-size: 0.75rem; padding: 4px 10px; }
@@ -103,6 +125,8 @@
   .nl-modify { padding: 10px 12px; gap: 6px; }
 
   .detail-panel { width: 100vw; max-width: 100vw; border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 90vh; }
+  .adjustment-progress-overlay { align-items: end; padding: 0; }
+  .adjustment-progress-dialog { width: 100%; padding: 26px 20px max(26px, env(safe-area-inset-bottom)); border-radius: 8px 8px 0 0; }
   .dp-hero-img { height: 180px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
   .dp-content { padding: 16px 18px 28px; }
 }
@@ -120,4 +144,13 @@
   .trip-cards { grid-template-columns: repeat(5, 1fr); }
   .outfit-cards { grid-template-columns: repeat(5, 1fr); }
   .dp-hero { height: 240px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-background-video { display: none; }
+  .adjustment-progress-mark span { animation: none; opacity: 1; }
+  .adjustment-progress-fill { transition: none; }
+  .home-video-hero {
+    background: url('/media/home-scenery-poster.png') center center / cover no-repeat;
+  }
 }

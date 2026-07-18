@@ -6,72 +6,28 @@
 
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TripCard } from '@/components/TripCard'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { ErrorState } from '@/components/ErrorState'
-import { EmptyState } from '@/components/EmptyState'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { TripCard, tripToCardData } from '@/components/TripCard'
 import { useUIStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
-import { deleteTrip, listTrips } from '@/services/trip'
+import { listTrips } from '@/services/trip'
 import type { Trip } from '@/types'
-import type { TripCardData } from '@/data/mock'
-
-/** 默认渐变（按 id 哈希取色，保证视觉一致） */
-const GRADIENTS = [
-  'linear-gradient(135deg,oklch(0.63 0.17 198),oklch(0.56 0.15 222))',
-  'linear-gradient(135deg,oklch(0.62 0.13 42),oklch(0.55 0.15 62))',
-  'linear-gradient(135deg,oklch(0.58 0.15 170),oklch(0.50 0.14 195))',
-  'linear-gradient(135deg,oklch(0.56 0.16 215),oklch(0.48 0.14 235))',
-  'linear-gradient(135deg,oklch(0.60 0.15 340),oklch(0.52 0.16 5))',
-]
-
-function pickGradient(id: string): string {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0
-  return GRADIENTS[hash % GRADIENTS.length]
-}
-
-/** 将 Trip 映射为 TripCard 视图数据 */
-function normalizeStatus(status: string | null | undefined): TripCardData['status'] {
-  if (status === 'ongoing') return 'ongoing'
-  if (status === 'returned' || status === 'archived') return 'returned'
-  return 'upcoming'
-}
-
-function toCardData(trip: Trip): TripCardData {
-  const datePart =
-    trip.start_date && trip.end_date
-      ? `${trip.start_date} 至 ${trip.end_date}`
-      : trip.start_date || ''
-  const subtitle = [datePart, trip.notes].filter(Boolean).join(' · ')
-  return {
-    id: trip.id,
-    title: trip.title,
-    subtitle: subtitle || trip.destination_name,
-    status: normalizeStatus(trip.status),
-    gradient: pickGradient(trip.id),
-    imageUrl: trip.cover_image_url,
-  }
-}
 
 export function HomePage() {
   const navigate = useNavigate()
   const showToast = useUIStore((s) => s.showToast)
   const user = useAuthStore((s) => s.user)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const logout = useAuthStore((s) => s.logout)
 
   const [trips, setTrips] = useState<Trip[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState(false)
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
 
   const loadTrips = (userId: string) => {
     setLoading(true)
     setError(null)
-    listTrips(userId)
+    listTrips(userId, { page: 1, page_size: 8 })
       .then((res) => setTrips(res.items))
       .catch((err) => setError(err instanceof Error ? err.message : '获取行程列表失败'))
       .finally(() => setLoading(false))
@@ -87,123 +43,149 @@ export function HomePage() {
     navigate(`/trips/${id}`)
   }
 
-  const handleDeleteConfirm = async () => {
-    if (deleting) return
-    if (!user || !deleteTargetId) return
-    setDeleting(true)
-    try {
-      await deleteTrip(user.id, deleteTargetId)
-      setTrips((prev) => prev.filter((trip) => trip.id !== deleteTargetId))
-      setDeleteTargetId(null)
-      showToast('行程已删除')
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : '删除行程失败')
-    } finally {
-      setDeleting(false)
+  const handleAccountClick = () => {
+    if (!isAuthenticated) {
+      navigate('/login?redirect=/')
+      return
     }
+    setAccountOpen((value) => !value)
+  }
+
+  const handleLogout = () => {
+    logout()
+    setAccountOpen(false)
+    setTrips([])
+    showToast('已退出登录')
   }
 
   const renderTripsSection = () => {
     if (!isAuthenticated) {
       return (
-        <EmptyState
-          icon="🔐"
-          title="登录后查看你的行程"
-          description="登录即可保存和管理你的 AI 旅行规划"
-          action={
-            <button
-              className="btn btn-primary"
-              onClick={() => navigate('/login?redirect=/')}
-            >
-              去登录
-            </button>
-          }
-        />
+        <div className="home-trip-state">
+          <span>登录后查看你的行程</span>
+          <button type="button" onClick={() => navigate('/login?redirect=/')}>
+            去登录
+          </button>
+        </div>
       )
     }
-    if (loading) return <LoadingSpinner label="加载行程中..." />
+    if (!user) return <div className="home-trip-state">正在加载行程...</div>
+    if (loading) return <div className="home-trip-state">正在加载行程...</div>
     if (error) {
       return (
-        <ErrorState
-          title="加载行程失败"
-          description={error}
-          action={
-            <button
-              className="btn btn-primary"
-              onClick={() => user && loadTrips(user.id)}
-            >
-              重试
-            </button>
-          }
-        />
+        <div className="home-trip-state">
+          <span>{error}</span>
+          <button type="button" onClick={() => user && loadTrips(user.id)}>
+            重试
+          </button>
+        </div>
       )
     }
     if (trips.length === 0) {
       return (
-        <EmptyState
-          icon="🗺️"
-          title="还没有行程"
-          description="点击下方按钮，让 AI 帮你规划第一次旅行"
-          action={
-            <button className="btn btn-primary" onClick={() => navigate('/start')}>
-              ✨ 开始规划
-            </button>
-          }
-        />
+        <div className="home-trip-state">还没有行程，从上方开始规划吧。</div>
       )
     }
     return (
       <div className="trip-cards">
-        {trips.map((trip) => (
-          <TripCard
-            key={trip.id}
-            trip={toCardData(trip)}
-            editing={editing}
-            onClick={handleTripClick}
-            onDelete={setDeleteTargetId}
-          />
+        {trips.slice(0, 8).map((trip) => (
+          <TripCard key={trip.id} trip={tripToCardData(trip)} onClick={handleTripClick} />
         ))}
-        {!editing && (
-          <div className="trip-card-new" onClick={() => navigate('/start')}>
-            <div className="plus">+</div>
-            <p>规划新行程</p>
-          </div>
-        )}
       </div>
     )
   }
 
   return (
-    <div className="page">
-      <section className="home-hero">
-        <h1>
-          想去旅行，但<span className="highlight">不知道去哪</span>？
-        </h1>
-        <p>旅图 AI 帮你从灵感激发到可执行行程，一站式完成旅行规划</p>
-        <button className="btn btn-primary btn-lg" onClick={() => navigate('/start')}>
-          ✨ 开始你的行程
-        </button>
-      </section>
+    <div className="home-page">
+      <section className="home-video-hero">
+        <video
+          className="home-background-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="/media/home-scenery-poster.png"
+          aria-hidden="true"
+        >
+          <source src="/media/home-scenery.mp4" type="video/mp4" />
+        </video>
+        <div className="home-video-overlay" aria-hidden="true" />
 
-      <section className="my-trips-section">
-        <div className="section-head">
-          <h2>📌 我的行程</h2>
-          {isAuthenticated && trips.length > 0 && (
-            <button className="section-action" onClick={() => setEditing((value) => !value)}>
-              {editing ? '完成' : '编辑'}
+        <header className="home-topbar">
+          <button className="home-brand" type="button" onClick={() => navigate('/')}>
+            旅<span>图</span>
+          </button>
+          <div className="home-top-actions">
+            <div className="home-account-wrap">
+              <button
+                className="home-nav-button home-account-button"
+                type="button"
+                onClick={handleAccountClick}
+                aria-expanded={isAuthenticated ? accountOpen : undefined}
+                aria-label={isAuthenticated ? '打开账户菜单' : '登录账户'}
+              >
+                <span className="home-account-avatar" aria-hidden="true">
+                  {(user?.display_name || '账').charAt(0)}
+                </span>
+                <span className="home-account-label">
+                  {isAuthenticated ? user?.display_name || '账户' : '账户'}
+                </span>
+              </button>
+              {isAuthenticated && accountOpen && (
+                <div className="home-account-menu">
+                  <strong>{user?.display_name || '旅图用户'}</strong>
+                  <button
+                    className="home-account-menu-link"
+                    type="button"
+                    onClick={() => {
+                      setAccountOpen(false)
+                      navigate('/trips')
+                    }}
+                  >
+                    所有行程
+                  </button>
+                  <button className="home-account-menu-danger" type="button" onClick={handleLogout}>
+                    退出登录
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <div className="home-one-page-content">
+          <div className="home-hero-content">
+            <span className="home-hero-kicker">AI TRAVEL PLANNER</span>
+            <h1>旅图</h1>
+            <p>从一个想法出发，找到目的地，生成真正可以出发的旅程。</p>
+            <button className="home-primary-cta" type="button" onClick={() => navigate('/start')}>
+              <span>开始规划</span>
+              <span aria-hidden="true">→</span>
             </button>
-          )}
+          </div>
+
+          <section className="home-trips-section" id="my-trips">
+            <div className="home-trips-inner">
+              <div className="section-head">
+                <div>
+                  <span className="home-section-kicker">YOUR JOURNEYS</span>
+                  <h2>我的行程</h2>
+                </div>
+              </div>
+              {renderTripsSection()}
+            </div>
+          </section>
         </div>
-        {renderTripsSection()}
+
+        <a
+          className="home-video-credit"
+          href="https://v.douyin.com/iXaWArcA_Aw/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          @子屿
+        </a>
       </section>
-      <ConfirmDialog
-        open={deleteTargetId !== null}
-        title="删除行程？"
-        description="删除后无法恢复，相关行程安排、机位、穿搭和打包清单都会被删除。"
-        confirmText={deleting ? '删除中...' : '确认删除'}
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteTargetId(null)}
-      />
     </div>
   )
 }

@@ -25,6 +25,21 @@ import * as outfitService from '@/services/outfit'
 import * as spotService from '@/services/spot'
 import * as planningService from '@/services/planning'
 
+export interface StartPreferenceSlider {
+  label: string
+  value: number
+}
+
+export interface StartFormDraft {
+  interest: string
+  departure: string
+  budget: string
+  startDate: string
+  endDate: string
+  extra: string
+  prefs: StartPreferenceSlider[]
+}
+
 interface TripState {
   currentTrip: Trip | null
   trips: Trip[]
@@ -40,6 +55,8 @@ interface TripState {
   routeOptions: RouteGenerationPayload | null
   /** 最近一次推荐请求参数（用于"换一批"） */
   lastRecommendRequest: DestinationRecommendationRequest | null
+  /** 偏好输入页草稿（用于从推荐页返回后恢复表单） */
+  startFormDraft: StartFormDraft | null
   /** 最近一次路线生成请求参数 */
   lastRouteRequest: RouteGenerationRequest | null
 
@@ -63,6 +80,8 @@ interface TripState {
   setOutfits: (outfits: OutfitRecommendation[]) => void
   setSpots: (spots: PhotoSpotRecommendation[]) => void
   setDestinations: (data: DestinationRecommendationPayload | null) => void
+  setLastRecommendRequest: (payload: DestinationRecommendationRequest | null) => void
+  setStartFormDraft: (draft: StartFormDraft | null) => void
   setRouteOptions: (data: RouteGenerationPayload | null) => void
   setError: (err: string | null) => void
   reset: () => void
@@ -90,6 +109,7 @@ export const useTripStore = create<TripState>((set) => ({
   destinations: null,
   routeOptions: null,
   lastRecommendRequest: null,
+  startFormDraft: null,
   lastRouteRequest: null,
 
   loadingTrips: false,
@@ -111,6 +131,8 @@ export const useTripStore = create<TripState>((set) => ({
   setOutfits: (outfits) => set({ outfits }),
   setSpots: (spots) => set({ spots }),
   setDestinations: (destinations) => set({ destinations }),
+  setLastRecommendRequest: (lastRecommendRequest) => set({ lastRecommendRequest }),
+  setStartFormDraft: (startFormDraft) => set({ startFormDraft }),
   setRouteOptions: (routeOptions) => set({ routeOptions }),
   setError: (error) => set({ error }),
 

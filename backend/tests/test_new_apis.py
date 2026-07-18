@@ -124,12 +124,11 @@ def test_create_outfit() -> None:
 
 def test_adjustment_adds_requested_place() -> None:
     from app.api.v1 import adjustments
+    from app.schemas.adjustment import AdjustmentPlan
+    from app.services import adjustment_service
 
-    class DisabledAmapClient:
-        available = False
-
-    original_get_amap_client = adjustments.get_amap_client
-    adjustments.get_amap_client = lambda: DisabledAmapClient()  # type: ignore[assignment]
+    original_generate = adjustments.generate_adjustment_plan
+    original_lookup = adjustment_service._lookup_place
     with _build_client() as client:
         try:
             _, trip_id = _create_user_and_trip(client)
@@ -138,6 +137,23 @@ def test_adjustment_adds_requested_place() -> None:
                 json={"day_index": 1, "title": "第一天"},
             )
             day_id = day_response.json()["data"]["id"]
+            adjustments.generate_adjustment_plan = lambda *_args, **_kwargs: (  # type: ignore[assignment]
+                AdjustmentPlan.model_validate(
+                    {
+                        "changes": [
+                            {
+                                "operation": "add",
+                                "day_id": day_id,
+                                "name": "广州塔",
+                                "start_time": "14:30",
+                                "position": 2,
+                            }
+                        ],
+                        "summary": "已在第一天下午加入广州塔。",
+                    }
+                )
+            )
+            adjustment_service._lookup_place = lambda *_args: {}  # type: ignore[assignment]
             client.post(
                 f"/api/v1/trip-days/{day_id}/points",
                 json={"name": "原有景点", "point_type": "spot", "sort_order": 1},
@@ -151,16 +167,214 @@ def test_adjustment_adds_requested_place() -> None:
             assert response.status_code == 201
             payload = response.json()
             assert payload["success"] is True
-            assert payload["data"]["output_data"]["summary"] == "已新增行程点：广州塔。"
+            assert payload["data"]["output_data"]["summary"] == "已在第一天下午加入广州塔。"
             changes = payload["data"]["output_data"]["changes"]
             assert changes[0]["op"] == "add"
-            assert changes[0]["value"] == "广州塔"
+            assert changes[0]["value"]["name"] == "广州塔"
 
             points_response = client.get(f"/api/v1/trip-days/{day_id}/points")
             points = points_response.json()["data"]["items"]
             assert [point["name"] for point in points] == ["原有景点", "广州塔"]
         finally:
-            adjustments.get_amap_client = original_get_amap_client
+            adjustments.generate_adjustment_plan = original_generate
+            adjustment_service._lookup_place = original_lookup
+
+
+def test_adjustment_noop_never_prefixes_point_name() -> None:
+    from app.api.v1 import adjustments
+    from app.schemas.adjustment import AdjustmentPlan
+
+    original_generate = adjustments.generate_adjustment_plan
+    with _build_client() as client:
+        try:
+            _, trip_id = _create_user_and_trip(client)
+            day_response = client.post(
+                f"/api/v1/trips/{trip_id}/days",
+                json={"day_index": 1, "title": "第一天"},
+            )
+            day_id = day_response.json()["data"]["id"]
+            point_response = client.post(
+                f"/api/v1/trip-days/{day_id}/points",
+                json={"name": "Seven.H城市营地", "point_type": "spot", "sort_order": 1},
+            )
+            point_id = point_response.json()["data"]["id"]
+            adjustments.generate_adjustment_plan = lambda *_args, **_kwargs: (  # type: ignore[assignment]
+                AdjustmentPlan.model_validate(
+                    {
+                        "changes": [
+                            {
+                                "operation": "update",
+                                "point_id": point_id,
+                                "name": "Seven.H城市营地",
+                            }
+                        ],
+                        "summary": "没有需要修改的内容。",
+                    }
+                )
+            )
+
+            response = client.post(
+                f"/api/v1/trips/{trip_id}/adjustments",
+                json={"instruction": "把第一天安排得轻松一些"},
+            )
+
+            assert response.status_code == 422
+            points_response = client.get(f"/api/v1/trip-days/{day_id}/points")
+            points = points_response.json()["data"]["items"]
+            assert [point["name"] for point in points] == ["Seven.H城市营地"]
+        finally:
+            adjustments.generate_adjustment_plan = original_generate
+
+
+def test_adjustment_applies_update_delete_move_and_creates_version() -> None:
+    from app.api.v1 import adjustments
+    from app.schemas.adjustment import AdjustmentPlan
+    from app.services import adjustment_service
+
+    original_generate = adjustments.generate_adjustment_plan
+    original_lookup = adjustment_service._lookup_place
+    with _build_client() as client:
+        try:
+            _, trip_id = _create_user_and_trip(client)
+            day_ids = []
+            for index in (1, 2):
+                response = client.post(
+                    f"/api/v1/trips/{trip_id}/days",
+                    json={"day_index": index, "title": f"第{index}天"},
+                )
+                day_ids.append(response.json()["data"]["id"])
+
+            point_ids = []
+            for index, name in enumerate(("旧地点", "待移动地点", "待删除地点"), start=1):
+                response = client.post(
+                    f"/api/v1/trip-days/{day_ids[0]}/points",
+                    json={"name": name, "point_type": "spot", "sort_order": index},
+                )
+                point_ids.append(response.json()["data"]["id"])
+
+            adjustments.generate_adjustment_plan = lambda *_args, **_kwargs: (  # type: ignore[assignment]
+                AdjustmentPlan.model_validate(
+                    {
+                        "changes": [
+                            {
+                                "operation": "update",
+                                "point_id": point_ids[0],
+                                "name": "广州塔",
+                                "start_time": "19:00",
+                            },
+                            {
+                                "operation": "move",
+                                "point_id": point_ids[1],
+                                "target_day_id": day_ids[1],
+                                "position": 1,
+                            },
+                            {"operation": "delete", "point_id": point_ids[2]},
+                        ],
+                        "summary": "已加入广州塔夜景，并将一个地点移至第二天。",
+                    }
+                )
+            )
+            adjustment_service._lookup_place = lambda *_args: {}  # type: ignore[assignment]
+
+            response = client.post(
+                f"/api/v1/trips/{trip_id}/adjustments",
+                json={"instruction": "第一天晚上改去广州塔，行程轻松一点"},
+            )
+
+            assert response.status_code == 201
+            changes = response.json()["data"]["output_data"]["changes"]
+            assert [change["op"] for change in changes] == ["update", "move", "delete"]
+
+            day_one_points = client.get(
+                f"/api/v1/trip-days/{day_ids[0]}/points"
+            ).json()["data"]["items"]
+            day_two_points = client.get(
+                f"/api/v1/trip-days/{day_ids[1]}/points"
+            ).json()["data"]["items"]
+            assert [(point["name"], point["start_time"]) for point in day_one_points] == [
+                ("广州塔", "19:00:00")
+            ]
+            assert [point["name"] for point in day_two_points] == ["待移动地点"]
+
+            versions = client.get(f"/api/v1/trips/{trip_id}/versions").json()
+            assert versions["meta"]["total"] == 1
+        finally:
+            adjustments.generate_adjustment_plan = original_generate
+            adjustment_service._lookup_place = original_lookup
+
+
+def test_adjustment_rejects_unknown_point_without_mutating_trip() -> None:
+    from app.api.v1 import adjustments
+    from app.schemas.adjustment import AdjustmentPlan
+
+    original_generate = adjustments.generate_adjustment_plan
+    with _build_client() as client:
+        try:
+            _, trip_id = _create_user_and_trip(client)
+            day_response = client.post(
+                f"/api/v1/trips/{trip_id}/days",
+                json={"day_index": 1, "title": "第一天"},
+            )
+            day_id = day_response.json()["data"]["id"]
+            client.post(
+                f"/api/v1/trip-days/{day_id}/points",
+                json={"name": "原有地点", "point_type": "spot", "sort_order": 1},
+            )
+            adjustments.generate_adjustment_plan = lambda *_args, **_kwargs: (  # type: ignore[assignment]
+                AdjustmentPlan.model_validate(
+                    {
+                        "changes": [
+                            {
+                                "operation": "delete",
+                                "point_id": str(uuid.uuid4()),
+                            }
+                        ],
+                        "summary": "删除地点。",
+                    }
+                )
+            )
+
+            response = client.post(
+                f"/api/v1/trips/{trip_id}/adjustments",
+                json={"instruction": "删掉一个地点"},
+            )
+
+            assert response.status_code == 422
+            points = client.get(f"/api/v1/trip-days/{day_id}/points").json()["data"]["items"]
+            assert [point["name"] for point in points] == ["原有地点"]
+        finally:
+            adjustments.generate_adjustment_plan = original_generate
+
+
+def test_adjustment_without_text_model_keeps_trip_unchanged() -> None:
+    from app.core.config import Settings, get_settings
+
+    with _build_client() as client:
+        app.dependency_overrides[get_settings] = lambda: Settings(
+            AI_BASE_URL=None,
+            AI_API_KEY=None,
+            AI_MODEL_NAME=None,
+        )
+        _, trip_id = _create_user_and_trip(client)
+        day_response = client.post(
+            f"/api/v1/trips/{trip_id}/days",
+            json={"day_index": 1, "title": "第一天"},
+        )
+        day_id = day_response.json()["data"]["id"]
+        client.post(
+            f"/api/v1/trip-days/{day_id}/points",
+            json={"name": "原有地点", "point_type": "spot", "sort_order": 1},
+        )
+
+        response = client.post(
+            f"/api/v1/trips/{trip_id}/adjustments",
+            json={"instruction": "帮我重新安排第一天"},
+        )
+
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "ai_adjustment_not_configured"
+        points = client.get(f"/api/v1/trip-days/{day_id}/points").json()["data"]["items"]
+        assert [point["name"] for point in points] == ["原有地点"]
 
 
 def test_list_spots_empty() -> None:

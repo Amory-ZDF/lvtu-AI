@@ -25,6 +25,7 @@ export interface DestinationRecommendationRequest {
   season?: string | null
   travel_style?: string[]
   interests?: string[]
+  exclude_destination_names?: string[]
 }
 
 /** 目的地推荐项 */

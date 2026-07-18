@@ -70,6 +70,8 @@ INTEREST_CATEGORY_HINTS = {
     "美食": {"citywalk"},
 }
 
+SNOW_MOUNTAIN_TERMS = ("雪山", "冰川", "雪峰", "雪域", "滑雪", "高山")
+
 TIME_SLOTS = {
     "relaxed": ["09:30", "12:00", "15:00", "17:30"],
     "balanced": ["09:00", "11:30", "14:30", "17:00"],
@@ -360,23 +362,75 @@ class KnowledgeRecommendationIntegration:
             )
 
         desired_categories = self._desired_categories(request)
-        summaries = self.store.summaries()
+        target_cities = self._target_cities(request)
+        excluded_cities = self._excluded_cities(request)
+        summaries = [
+            summary
+            for summary in self.store.summaries()
+            if summary.name not in excluded_cities
+        ]
         ranked = sorted(
             summaries,
-            key=lambda item: self._score_city(item, desired_categories, request),
+            key=lambda item: self._score_city(
+                item,
+                desired_categories,
+                request,
+                target_cities,
+            ),
             reverse=True,
         )[:6]
 
         destinations = [
-            self._to_destination_item(summary, request, desired_categories)
+            self._to_destination_item(summary, request, desired_categories, target_cities)
             for summary in ranked
         ]
         interests = request.interests or ["自然", "拍照", "城市漫步"]
-        summary = (
+        summary_parts = [
             f"基于本地知识库 {self.store.city_count} 城、{self.store.poi_count} 个真实 POI "
             f"匹配：{request.duration_days} 天，兴趣 {'/'.join(interests[:4])}"
-        )
+        ]
+        if target_cities:
+            summary_parts.append(f"明确目的地：{'/'.join(sorted(target_cities))}")
+        if excluded_cities:
+            summary_parts.append(f"已排除已浏览目的地 {len(excluded_cities)} 个")
+        summary = "；".join(summary_parts)
         return DestinationRecommendationPayload(query_summary=summary, destinations=destinations)
+
+    def _recommendation_text(self, request: DestinationRecommendationRequest) -> str:
+        return " ".join([*request.interests, *request.travel_style]).lower()
+
+    def _target_cities(self, request: DestinationRecommendationRequest) -> set[str]:
+        text = self._recommendation_text(request).replace(" ", "")
+        if not text:
+            return set()
+
+        targets: set[str] = set()
+        for city in self.store._pois_by_city:
+            city_lower = city.lower()
+            if len(city) >= 2 and (
+                city_lower in text
+                or f"{city_lower}市" in text
+                or f"{city_lower}地区" in text
+                or f"{city_lower}州" in text
+            ):
+                targets.add(city)
+        for value in [*request.interests, *request.travel_style]:
+            resolved = self.store.resolve_city(value)
+            if resolved:
+                targets.add(resolved)
+        return targets
+
+    def _excluded_cities(self, request: DestinationRecommendationRequest) -> set[str]:
+        excluded: set[str] = set()
+        for value in request.exclude_destination_names:
+            resolved = self.store.resolve_city(value)
+            if resolved:
+                excluded.add(resolved)
+                continue
+            candidate = value.strip().removesuffix("市").removesuffix("地区").removesuffix("州")
+            if candidate:
+                excluded.add(candidate)
+        return excluded
 
     def _desired_categories(
         self,
@@ -398,6 +452,7 @@ class KnowledgeRecommendationIntegration:
         summary: CitySummary,
         desired_categories: set[str],
         request: DestinationRecommendationRequest,
+        target_cities: set[str],
     ) -> float:
         category_total = sum(summary.category_counts.values()) or 1
         interest_count = sum(summary.category_counts[c] for c in desired_categories)
@@ -411,15 +466,55 @@ class KnowledgeRecommendationIntegration:
             + photo_ratio * 12
             + scale_score * 10
             + duration_fit * 7
+            + self._intent_boost(summary, request, target_cities)
         )
+
+    def _intent_boost(
+        self,
+        summary: CitySummary,
+        request: DestinationRecommendationRequest,
+        target_cities: set[str],
+    ) -> float:
+        boost = 0.0
+        if summary.name in target_cities:
+            boost += 130
+
+        request_text = self._recommendation_text(request)
+        requested_snow_terms = [
+            term for term in SNOW_MOUNTAIN_TERMS if term.lower() in request_text
+        ]
+        if requested_snow_terms:
+            city_text = self._city_keyword_text(summary)
+            matched_terms = [term for term in requested_snow_terms if term in city_text]
+            if matched_terms:
+                boost += 72 + min(len(matched_terms) * 8, 24)
+            elif "雪山" in request_text and any(
+                term in city_text for term in ("冰川", "雪峰", "雪域")
+            ):
+                boost += 56
+
+        return boost
+
+    def _city_keyword_text(self, summary: CitySummary) -> str:
+        parts = [summary.name, summary.province, *summary.top_tags]
+        for poi in self.store.city_pois(summary.name):
+            parts.extend(
+                [
+                    str(poi.get("name") or ""),
+                    str(poi.get("category") or ""),
+                    " ".join(str(tag) for tag in (poi.get("tags") or [])),
+                ],
+            )
+        return " ".join(parts)
 
     def _to_destination_item(
         self,
         summary: CitySummary,
         request: DestinationRecommendationRequest,
         desired_categories: set[str],
+        target_cities: set[str],
     ) -> DestinationItem:
-        score = self._score_city(summary, desired_categories, request)
+        score = self._score_city(summary, desired_categories, request, target_cities)
         top_names = [p["name"] for p in summary.top_pois[:3]]
         photo_text = (
             f"{summary.photo_count} 个机位候选"

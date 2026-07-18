@@ -2,15 +2,9 @@
 
 from __future__ import annotations
 
-import json
-import logging
-import time
-from typing import Any
-
-import httpx
-
 from app.core.exceptions import AppException
 from app.core.safety import sanitize_content, validate_ai_output
+from app.integrations.llm.json_client import OpenAICompatibleJsonClient
 from app.integrations.prompts.destination import build_destination_prompt
 from app.schemas.planning import (
     DestinationItem,
@@ -18,8 +12,6 @@ from app.schemas.planning import (
     DestinationRecommendationRequest,
     ImageResource,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _placeholder_image(description: str, category: str = "destination") -> ImageResource:
@@ -45,100 +37,15 @@ class RealLLMRecommendationIntegration:
     """
 
     def __init__(self, base_url: str, api_key: str, model_name: str) -> None:
-        self._base_url = base_url.rstrip("/")
-        self._api_key = api_key
-        self._model_name = model_name
+        self._client = OpenAICompatibleJsonClient(base_url, api_key, model_name)
 
     def recommend(
         self,
         request: DestinationRecommendationRequest,
     ) -> DestinationRecommendationPayload:
         messages = build_destination_prompt(request)
-        raw_content = self._call_chat_completions(messages)
-        data = self._parse_json_response(raw_content)
+        data = self._client.complete_json(messages, temperature=0.7)
         return self._build_payload(data, request)
-
-    def _call_chat_completions(self, messages: list[dict]) -> str:
-        """调用 LLM Chat Completions API 并返回 message content。"""
-        url = f"{self._base_url}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json",
-        }
-        body: dict[str, Any] = {
-            "model": self._model_name,
-            "messages": messages,
-            "temperature": 0.7,
-            "response_format": {"type": "json_object"},
-        }
-
-        prompt_length = sum(len(m.get("content", "")) for m in messages)
-        start = time.perf_counter()
-        success = False
-        status_code: int | None = None
-        try:
-            with httpx.Client(timeout=60.0) as client:
-                response = client.post(url, headers=headers, json=body)
-                status_code = response.status_code
-                response.raise_for_status()
-                payload = response.json()
-                content = payload["choices"][0]["message"]["content"]
-                success = True
-                return content
-        except httpx.HTTPStatusError as exc:
-            logger.exception(
-                "LLM API returned non-2xx status: %s, body=%s",
-                exc.response.status_code,
-                exc.response.text[:500],
-            )
-            raise AppException(
-                status_code=502,
-                code="ai_provider_error",
-                message=f"LLM 服务返回错误状态：{exc.response.status_code}",
-            ) from exc
-        except httpx.RequestError as exc:
-            logger.exception("LLM API request failed: %s", exc)
-            raise AppException(
-                status_code=502,
-                code="ai_provider_unreachable",
-                message="无法连接 LLM 服务",
-            ) from exc
-        except (KeyError, IndexError) as exc:
-            logger.exception("LLM API response missing expected fields: %s", exc)
-            raise AppException(
-                status_code=502,
-                code="ai_response_invalid",
-                message="LLM 服务返回结构异常",
-            ) from exc
-        finally:
-            elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
-            logger.info(
-                "LLM call: prompt_length=%s response_status=%s success=%s elapsed_ms=%s",
-                prompt_length,
-                status_code,
-                success,
-                elapsed_ms,
-            )
-
-    @staticmethod
-    def _parse_json_response(content: str) -> dict:
-        """解析 LLM 返回的 JSON 字符串。"""
-        try:
-            data = json.loads(content)
-        except json.JSONDecodeError as exc:
-            logger.exception("Failed to parse LLM JSON response: %s", content[:500])
-            raise AppException(
-                status_code=502,
-                code="ai_response_invalid",
-                message="LLM 返回内容无法解析为 JSON",
-            ) from exc
-        if not isinstance(data, dict):
-            raise AppException(
-                status_code=502,
-                code="ai_response_invalid",
-                message="LLM 返回内容不是 JSON 对象",
-            )
-        return data
 
     def _build_payload(
         self,

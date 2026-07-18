@@ -21,6 +21,7 @@ class DestinationRecommendationRequest(BaseModel):
     season: str | None = None
     travel_style: list[str] = Field(default_factory=list)
     interests: list[str] = Field(default_factory=list)
+    exclude_destination_names: list[str] = Field(default_factory=list)
 
 
 class DestinationItem(BaseModel):

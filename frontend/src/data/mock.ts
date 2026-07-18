@@ -4,15 +4,12 @@
  * Real/mock business data is intentionally not committed to the public repository.
  */
 
-/** 我的行程卡片（首页） */
+/** 行程列表卡片 */
 export interface TripCardData {
   id: string
-  title: string
-  subtitle: string
-  status: 'upcoming' | 'ongoing' | 'returned'
-  gradient: string
-  /** 封面图 URL（存在时优先用 LazyImage 渲染，gradient 作为兜底） */
-  imageUrl?: string | null
+  destination: string
+  duration: string
+  description: string
 }
 
 /** 目的地预览卡片 */
