@@ -29,7 +29,12 @@ class Settings(BaseSettings):
         alias="CORS_ALLOW_METHODS",
     )
     cors_allow_headers: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["Authorization", "Content-Type", "X-Request-ID"],
+        default_factory=lambda: [
+            "Authorization",
+            "Content-Type",
+            "X-Request-ID",
+            "X-Ops-Service-Token",
+        ],
         alias="CORS_ALLOW_HEADERS",
     )
 
@@ -89,6 +94,7 @@ class Settings(BaseSettings):
     ai_cache_ttl: int = Field(default=3600, alias="AI_CACHE_TTL")
 
     analytics_enabled: bool = Field(default=True, alias="ANALYTICS_ENABLED")
+    ops_service_token: str | None = Field(default=None, alias="OPS_SERVICE_TOKEN")
     analytics_admin_emails: Annotated[list[str], NoDecode] = Field(
         default_factory=list,
         alias="ANALYTICS_ADMIN_EMAILS",
@@ -102,9 +108,7 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = Field(
         default=30, alias="JWT_ACCESS_TOKEN_EXPIRE_MINUTES"
     )
-    jwt_refresh_token_expire_days: int = Field(
-        default=7, alias="JWT_REFRESH_TOKEN_EXPIRE_DAYS"
-    )
+    jwt_refresh_token_expire_days: int = Field(default=7, alias="JWT_REFRESH_TOKEN_EXPIRE_DAYS")
 
     # LangGraph Agent 配置
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")

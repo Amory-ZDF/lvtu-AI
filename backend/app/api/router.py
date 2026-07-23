@@ -9,6 +9,7 @@ from app.api.v1.jobs import router as jobs_router
 from app.api.v1.knowledge import router as knowledge_router
 from app.api.v1.media import router as media_router
 from app.api.v1.notifications import router as notifications_router
+from app.api.v1.ops_audit import router as ops_audit_router
 from app.api.v1.outfits import router as outfits_router
 from app.api.v1.planning import router as planning_router
 from app.api.v1.search import router as search_router
@@ -31,6 +32,7 @@ api_router.include_router(adjustments_router, tags=["adjustments"])
 api_router.include_router(versions_router, tags=["trip-versions"])
 api_router.include_router(search_router, tags=["search"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(ops_audit_router, prefix="/ops/audit", tags=["ops-audit"])
 api_router.include_router(ws_router, tags=["websocket"])
 
 # Agent router is optional (requires langgraph dependencies not in base install)

@@ -1,5 +1,6 @@
 from app.models.analytics_admin import AnalyticsAdmin
 from app.models.analytics_event import AnalyticsEvent
+from app.models.audit_log import AdminAuditLog, AuditAction, AuditTask
 from app.models.collaborator import Collaborator
 from app.models.destination import Destination
 from app.models.destination_candidate import DestinationCandidate
@@ -24,6 +25,9 @@ from app.models.user_preference import UserPreference
 __all__ = [
     "AnalyticsAdmin",
     "AnalyticsEvent",
+    "AdminAuditLog",
+    "AuditAction",
+    "AuditTask",
     "Collaborator",
     "Destination",
     "DestinationCandidate",

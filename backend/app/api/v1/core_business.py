@@ -39,6 +39,12 @@ from app.schemas.domain import (
     UserProfileRead,
     UserProfileUpsert,
 )
+from app.services.audit_service import (
+    append_action,
+    ensure_trip_task,
+    soft_delete_trip,
+    trip_summary,
+)
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_db_session)]
@@ -99,7 +105,7 @@ def _get_trip_or_404(db: Session, user_id: UUID, trip_id: UUID) -> Trip:
     trip = db.scalar(
         select(Trip)
         .options(selectinload(Trip.days).selectinload(TripDay.points))
-        .where(Trip.id == trip_id, Trip.user_id == user_id)
+        .where(Trip.id == trip_id, Trip.user_id == user_id, Trip.deleted_at.is_(None))
     )
     if trip is None:
         raise AppException(
@@ -112,7 +118,7 @@ def _get_trip_or_404(db: Session, user_id: UUID, trip_id: UUID) -> Trip:
 
 def _get_trip_by_id_or_404(db: Session, trip_id: UUID) -> Trip:
     trip = db.get(Trip, trip_id)
-    if trip is None:
+    if trip is None or trip.deleted_at is not None:
         raise AppException(
             status_code=status.HTTP_404_NOT_FOUND,
             code=ErrorCode.TRIP_NOT_FOUND,
@@ -127,7 +133,15 @@ def _list_trip_days(db: Session, trip_id: UUID) -> list[TripDay]:
 
 
 def _get_trip_day_or_404(db: Session, trip_id: UUID, day_id: UUID) -> TripDay:
-    trip_day = db.scalar(select(TripDay).where(TripDay.id == day_id, TripDay.trip_id == trip_id))
+    trip_day = db.scalar(
+        select(TripDay)
+        .join(Trip, TripDay.trip_id == Trip.id)
+        .where(
+            TripDay.id == day_id,
+            TripDay.trip_id == trip_id,
+            Trip.deleted_at.is_(None),
+        )
+    )
     if trip_day is None:
         raise AppException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -138,7 +152,11 @@ def _get_trip_day_or_404(db: Session, trip_id: UUID, day_id: UUID) -> TripDay:
 
 
 def _get_trip_day_by_id_or_404(db: Session, trip_day_id: UUID) -> TripDay:
-    trip_day = db.get(TripDay, trip_day_id)
+    trip_day = db.scalar(
+        select(TripDay)
+        .join(Trip, TripDay.trip_id == Trip.id)
+        .where(TripDay.id == trip_day_id, Trip.deleted_at.is_(None))
+    )
     if trip_day is None:
         raise AppException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -150,9 +168,7 @@ def _get_trip_day_by_id_or_404(db: Session, trip_day_id: UUID) -> TripDay:
 
 def _list_trip_points(db: Session, trip_day_id: UUID) -> list[TripPoint]:
     stmt = (
-        select(TripPoint)
-        .where(TripPoint.trip_day_id == trip_day_id)
-        .order_by(TripPoint.sort_order)
+        select(TripPoint).where(TripPoint.trip_day_id == trip_day_id).order_by(TripPoint.sort_order)
     )
     return list(db.scalars(stmt))
 
@@ -254,9 +270,7 @@ def _serialize_trip_snapshot(db: Session, trip_id: UUID) -> dict:
         .order_by(PackingItem.created_at, PackingItem.id)
     )
     packing_items = list(db.scalars(packing_stmt))
-    items_data = [
-        PackingItemRead.model_validate(i).model_dump(mode="json") for i in packing_items
-    ]
+    items_data = [PackingItemRead.model_validate(i).model_dump(mode="json") for i in packing_items]
 
     return {
         "trip": trip_data,
@@ -321,11 +335,12 @@ def _create_version_snapshot(
             db.refresh(latest_version)
             return latest_version
 
-        max_version = db.scalar(
-            select(func.max(TripVersion.version_number)).where(
-                TripVersion.trip_id == trip_id
+        max_version = (
+            db.scalar(
+                select(func.max(TripVersion.version_number)).where(TripVersion.trip_id == trip_id)
             )
-        ) or 0
+            or 0
+        )
 
         version = TripVersion(
             trip_id=trip_id,
@@ -411,10 +426,17 @@ def list_trips(
 ) -> ApiResponse:
     _enforce_owner(current_user, user_id)
     _get_user_or_404(db, user_id)
-    total = db.scalar(select(func.count()).select_from(Trip).where(Trip.user_id == user_id)) or 0
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(Trip)
+            .where(Trip.user_id == user_id, Trip.deleted_at.is_(None))
+        )
+        or 0
+    )
     stmt = (
         select(Trip)
-        .where(Trip.user_id == user_id)
+        .where(Trip.user_id == user_id, Trip.deleted_at.is_(None))
         .order_by(Trip.updated_at.desc(), Trip.created_at.desc())
         .limit(page_size)
         .offset((page - 1) * page_size)
@@ -437,10 +459,29 @@ def create_trip(
     current_user: CurrentUserOptional,
 ) -> ApiResponse:
     _enforce_owner(current_user, user_id)
-    _get_user_or_404(db, user_id)
+    user = _get_user_or_404(db, user_id)
     trip = Trip(user_id=user_id, **payload.model_dump())
     db.add(trip)
-    _commit_or_409(db, "行程创建失败")
+    try:
+        db.flush()
+        task = ensure_trip_task(db, trip, user)
+        append_action(
+            db,
+            task,
+            action_type="trip_created",
+            request_id=getattr(request.state, "request_id", None),
+            user=user,
+            target_id=str(trip.id),
+            after_summary=trip_summary(trip),
+        )
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise AppException(
+            status_code=status.HTTP_409_CONFLICT,
+            code=ErrorCode.CONFLICT,
+            message="行程创建失败",
+        ) from exc
     db.refresh(trip)
     return success_response(TripRead.model_validate(trip).model_dump(mode="json"), request)
 
@@ -469,9 +510,22 @@ def update_trip(
 ) -> ApiResponse:
     _enforce_owner(current_user, user_id)
     trip = _get_trip_or_404(db, user_id, trip_id)
+    user = _get_user_or_404(db, user_id)
+    before = trip_summary(trip)
     _create_version_snapshot(db, trip_id, note="行程更新前")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(trip, field, value)
+    task = ensure_trip_task(db, trip, user)
+    append_action(
+        db,
+        task,
+        action_type="trip_updated",
+        request_id=getattr(request.state, "request_id", None),
+        user=user,
+        target_id=str(trip.id),
+        before_summary=before,
+        after_summary=trip_summary(trip),
+    )
     _commit_or_409(db, "行程更新失败")
     db.refresh(trip)
     return success_response(TripRead.model_validate(trip).model_dump(mode="json"), request)
@@ -485,12 +539,19 @@ def update_trip(
 def delete_trip(
     user_id: UUID,
     trip_id: UUID,
+    request: Request,
     db: SessionDep,
     current_user: CurrentUserOptional,
 ) -> Response:
     _enforce_owner(current_user, user_id)
     trip = _get_trip_or_404(db, user_id, trip_id)
-    db.delete(trip)
+    user = _get_user_or_404(db, user_id)
+    soft_delete_trip(
+        db,
+        trip,
+        user,
+        request_id=getattr(request.state, "request_id", None),
+    )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -652,9 +713,7 @@ def list_trip_points(
     _get_trip_day_by_id_or_404(db, trip_day_id)
     total = (
         db.scalar(
-            select(func.count())
-            .select_from(TripPoint)
-            .where(TripPoint.trip_day_id == trip_day_id)
+            select(func.count()).select_from(TripPoint).where(TripPoint.trip_day_id == trip_day_id)
         )
         or 0
     )
@@ -822,9 +881,7 @@ def list_packing_items(
     _get_trip_by_id_or_404(db, trip_id)
     total = (
         db.scalar(
-            select(func.count())
-            .select_from(PackingItem)
-            .where(PackingItem.trip_id == trip_id)
+            select(func.count()).select_from(PackingItem).where(PackingItem.trip_id == trip_id)
         )
         or 0
     )

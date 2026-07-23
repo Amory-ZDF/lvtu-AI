@@ -10,6 +10,7 @@ from app.api.responses import success_response
 from app.db.session import get_db_session
 from app.middleware.auth import get_current_user_optional
 from app.models.trip import Trip
+from app.models.trip_day import TripDay
 from app.models.trip_point import TripPoint
 from app.models.user import User
 from app.schemas.common import ApiResponse
@@ -45,10 +46,11 @@ def _make_snippet(text: str | None, keyword: str) -> str | None:
 def _search_destinations(db: Session, keyword: str) -> list[SearchResultItem]:
     pattern = f"%{keyword}%"
     stmt = select(Trip).where(
+        Trip.deleted_at.is_(None),
         or_(
             Trip.destination_name.ilike(pattern),
             Trip.title.ilike(pattern),
-        )
+        ),
     )
     trips = list(db.scalars(stmt))
     return [
@@ -65,10 +67,16 @@ def _search_destinations(db: Session, keyword: str) -> list[SearchResultItem]:
 
 def _search_spots(db: Session, keyword: str) -> list[SearchResultItem]:
     pattern = f"%{keyword}%"
-    stmt = select(TripPoint).where(
-        or_(
-            TripPoint.name.ilike(pattern),
-            TripPoint.address.ilike(pattern),
+    stmt = (
+        select(TripPoint)
+        .join(TripDay, TripPoint.trip_day_id == TripDay.id)
+        .join(Trip, TripDay.trip_id == Trip.id)
+        .where(
+            Trip.deleted_at.is_(None),
+            or_(
+                TripPoint.name.ilike(pattern),
+                TripPoint.address.ilike(pattern),
+            ),
         )
     )
     points = list(db.scalars(stmt))

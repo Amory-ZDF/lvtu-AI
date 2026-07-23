@@ -31,7 +31,7 @@ CurrentUserOptional = Annotated[User | None, Depends(get_current_user_optional)]
 
 def _get_trip_or_404(db: Session, trip_id: UUID) -> Trip:
     trip = db.get(Trip, trip_id)
-    if trip is None:
+    if trip is None or trip.deleted_at is not None:
         raise AppException(
             status_code=status.HTTP_404_NOT_FOUND,
             code=ErrorCode.TRIP_NOT_FOUND,
